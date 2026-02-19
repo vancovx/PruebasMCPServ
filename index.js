@@ -1,10 +1,10 @@
 import express from "express";
 import dotenv from "dotenv";
-import { OpenApiMeasurements } from "./src/services/measurements.Routes.js";
+import { registerTools } from "./src/tools/InfoCollectionTool.js";
 
 // Librerias MCP 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"; 
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"; //Transporte para desarrollo local con MCP Inspector
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js"; 
 
 // Librerias varias
@@ -12,8 +12,9 @@ import { randomUUID } from "crypto";
 import { DateTime } from "luxon";
 import { join } from 'path';
 import { create } from "domain";
+import { register } from "module";
 
-//TODO: Aqui configurar Middlewares de Express, CORS, seguridad helmet y demas cosas que se necesiten para el servidor Express.
+//TODO: Configurar Middlewares de Express, CORS, seguridad helmet y demas cosas que se necesiten para el servidor Express.
 
 // Configuracion de variables de entorno
 dotenv.config({path: join(process.cwd(), 'src/config/.env'), debug: false}); 
@@ -24,7 +25,7 @@ function createMcpServer() {
     const server = new McpServer({name: "mcp-server1-prueba", version: "1.0.0"}, {capabilities: { tools: {}}});
 
     //TODO: Registrar herramientas en el servidor MCP
-    // Se puede hacer con server.setRequestHandler() (más control) o con server.registerTool().
+    registerTools(server);
 
 
     return server;
@@ -55,15 +56,12 @@ async function startMcpServer() {
             console.error("Express + MCP corriendo en el puerto:", port);
         });
 
-
     } else if (process.env.NODE_ENV === "development") {
         // STDIO para probar en local con MCP Inspector
         const server = createMcpServer();
         const transport = new StdioServerTransport();
         await server.connect(transport);
         console.error("Servidor MCP iniciado");
-
-        
 
     } 
 }

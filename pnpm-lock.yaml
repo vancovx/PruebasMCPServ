@@ -29,6 +29,9 @@ importers:
       start:
         specifier: ^5.1.0
         version: 5.1.0
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
     devDependencies:
       tsx:
         specifier: ^4.21.0
