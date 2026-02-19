@@ -1,0 +1,8 @@
+# Node artifact files
+node_modules/
+dist/
+.modules.yaml
+.pnpm-workspace.yaml
+
+# Environment variable files
+.env
