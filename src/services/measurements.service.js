@@ -12,8 +12,6 @@ export const OpenApiMeasurements = {
                     'x-token-open-api': `${process.env.KUNNA_API_TOKEN_AGUA}`,
                 },
             });
-                console.log("Información de la OpenAPI obtenida correctamente");
-                console.log(response.data);
 
             return response.data;
 
@@ -32,8 +30,6 @@ export const OpenApiMeasurements = {
                     'x-token-open-api': `${process.env.KUNNA_API_TOKEN_AGUA}`,
                 },
             });
-                console.log("Información de los dispositivos obtenida correctamente");
-                console.log(response.data);
 
             return response.data;
 
@@ -44,7 +40,51 @@ export const OpenApiMeasurements = {
             return { error: true, message: error.message }; 
 
         }
-    }
+    },
+
+    async fetchOpenApiMagnitudes(device_id = null) {
+        try {
+            const params = {};
+            if (device_id) params.device_id = device_id;
+
+            const response = await axios.get(`${process.env.KUNNA_ENDPOINT_API}/openapi/measurements/magnitudes`, {
+                headers: {
+                    'x-token-open-api': `${process.env.KUNNA_API_TOKEN_AGUA}`,
+                },
+                params: params
+            });
+
+
+            return response.data;
+
+        } catch (error) {
+            if (error.response) {
+                return { error: true, status: error.response.status, message: error.response.data?.message || JSON.stringify(error.response.data)};
+            }  
+            return { error: true, message: error.message }; 
+
+        }
+    },
+
+    async fetchOpenApiMetadaDevice(device_id) {
+        try {
+
+            const response = await axios.get(`${process.env.KUNNA_ENDPOINT_API}/openapi/measurements/metadata/${device_id}`, {
+                headers: {
+                    'x-token-open-api': `${process.env.KUNNA_API_TOKEN_AGUA}`,
+                },
+            });
+
+            return response.data;
+
+        } catch (error) {
+            if (error.response) {
+                return { error: true, status: error.response.status, message: error.response.data?.message || JSON.stringify(error.response.data)};
+            }  
+            return { error: true, message: error.message }; 
+
+        }
+    },
 
 
 
