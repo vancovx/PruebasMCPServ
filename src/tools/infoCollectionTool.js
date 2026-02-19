@@ -6,7 +6,7 @@ export function registerTools(server) {
     server.registerTool(
         "get-openapi-measurements-info",  
         {
-            description: "Obtiene la información de la OpenAPI de mediciones.",
+            description: "Proporciona información sobre la fuente de datos que se va a consultar, dependiendo del Token se recibe información de una coleccion u otra.",
             inputSchema: {}  
         },
         async () => {  
