@@ -5,4 +5,5 @@ dist/
 .pnpm-workspace.yaml
 
 # Environment variable files
+src/config/
 .env

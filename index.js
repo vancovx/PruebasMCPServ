@@ -3,8 +3,8 @@ import dotenv from "dotenv";
 import { OpenApiMeasurements } from "./src/services/measurements.Routes.js";
 
 // Librerias MCP 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"; //Transporte mejorado para el MCP
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"; //Transporte remoto para el MCP
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"; //Transporte para desarrollo local con MCP Inspector
 
 // Librerias varias
 import { randomUUID } from "crypto";
@@ -16,10 +16,6 @@ import { join } from 'path';
 // Configuracion de variables de entorno
 dotenv.config({path: join(process.cwd(), 'src/config/.env'), debug: false}); 
 
-// Crear servidor Express
-// Esto para cuando usemos el servidor en remoto
-const app = express();
-const PORT = process.env.PORT || 3001;
 
 // Configurar MCP Server 
 const server = new McpServer({name: "mcp-server1-prueba", version: "1.0.0"}, {capabilities: { tools: {}}}); //Se supone que el capabilities es obligatorio a la hora de crear el servidor MCP.
@@ -34,6 +30,24 @@ const server = new McpServer({name: "mcp-server1-prueba", version: "1.0.0"}, {ca
 async function startMcpServer() {
     if (process.env.NODE_ENV === "production") {
         // Streamable para producción y probar con Postman
+        const app = express();
+        app.use(express.json());
+
+        // Rutas Express normales
+        app.get("/health", (req, res) => {
+        res.json({ status: "ok" });
+        });
+
+        // MCP montado en su propia ruta
+        const mcpTransport = new StreamableHTTPServerTransport({
+        endpoint: "/mcp"
+        });
+        await server.connect(mcpTransport);
+        app.use("/mcp", mcpTransport.requestHandler);
+
+        app.listen(process.env.PORT, () => {
+        console.error("Express + MCP corriendo en el puerto:", process.env.PORT);
+        });
 
 
     } else if (process.env.NODE_ENV === "development") {
@@ -44,4 +58,9 @@ async function startMcpServer() {
     } 
 }
 
+
+startMcpServer().catch((error) => {
+    console.error("Error al iniciar el servidor MCP:", error);
+    process.exit(1);
+});
 
