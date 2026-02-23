@@ -1,6 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
-import { registerTools } from "./src/tools/InfoCollectionTool.js";
+import { registerTools } from "./src/tools/registerTool.js";
 
 // Librerias MCP 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"; 

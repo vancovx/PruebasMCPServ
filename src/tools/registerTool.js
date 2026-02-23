@@ -62,4 +62,25 @@ export function registerTools(server) {
             };
         }
     );
+
+    server.registerTool(
+        "get-measurements-query-data",
+        {
+            description: "Consulta series temporales de mediciones de dispositivos. Permite filtrar por device_id y magnitude, definir un rango temporal, límite de resultados y zona horaria.",
+            inputSchema: z.object({
+                device_id: z.string().optional().describe("ID del dispositivo. Si no se proporciona, no se filtra por dispositivo."),
+                magnitude: z.string().optional().describe("Magnitud a consultar (temperatura, humedad, co2, etc.). Si no se proporciona, no se filtra por magnitud."),
+                last: z.number().optional().describe("Minutos hacia atrás desde ahora para definir el rango temporal. Por defecto 60."),
+                timezone: z.string().optional().describe("Zona horaria. Por defecto Europe/Madrid."),
+                limit: z.number().optional().describe("Número máximo de resultados. Por defecto 1000."),
+                export_format: z.enum(["json", "csv", "xml"]).optional().describe("Formato de exportación de los datos. Por defecto json.")
+            })
+        },
+        async (params = {}) => {
+            const result = await OpenApiMeasurements.fetchOpenApiQueryData(params);
+            return {
+                content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+            };
+        }
+    );
 }
