@@ -125,7 +125,7 @@ export const OpenApiMeasurements = {
         }
     },
 
-    async fetchOpenApiQueryAggregation({ device_id = null, magnitude = null, start = null, end = null, last = 60, timezone = "Europe/Madrid", operations = "avg", interval_minutes = 60, group_by = "device_id", export_format = "json" } = {}) {
+    async fetchOpenApiQueryAggregation({ device_id = null, magnitude = null, tags = [], start = null, end = null, last = 60, timezone = "Europe/Madrid", operations = "avg", interval_minutes = 60, group_by = "device_id", export_format = "json" } = {}) {
         try {
             const filters = [];
             if (device_id) filters.push({ field: "device_id", values: [device_id] });
