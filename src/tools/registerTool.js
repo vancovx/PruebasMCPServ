@@ -66,14 +66,20 @@ export function registerTools(server) {
     server.registerTool(
         "get-measurements-query-data",
         {
-            description: "Consulta series temporales de mediciones de dispositivos. Permite filtrar por device_id y magnitude, definir un rango temporal, límite de resultados y zona horaria.",
+            description: "Consulta series temporales de mediciones. Permite filtrar por device_id, magnitude y tags. El rango temporal puede definirse con fechas absolutas (start/end) o relativo en minutos (last).",
             inputSchema: z.object({
-                device_id: z.string().optional().describe("ID del dispositivo. Si no se proporciona, no se filtra por dispositivo."),
-                magnitude: z.string().optional().describe("Magnitud a consultar (temperatura, humedad, co2, etc.). Si no se proporciona, no se filtra por magnitud."),
-                last: z.number().optional().describe("Minutos hacia atrás desde ahora para definir el rango temporal. Por defecto 60."),
+                device_id: z.string().optional().describe("ID del dispositivo a filtrar."),
+                magnitude: z.string().optional().describe("Magnitud a filtrar (temperatura, humedad, co2, etc.)."),
+                tags: z.array(z.object({
+                    field: z.string().describe("Campo del tag por el que filtrar (ej: origin, location, etc.)."),
+                    values: z.array(z.string()).describe("Valores del tag. Múltiples valores se evalúan con OR.")
+                })).optional().describe("Filtros por tags. Múltiples objetos tag se combinan con AND."),
+                start: z.string().optional().describe("Fecha de inicio en ISO 8601 (ej: 2025-11-01T00:00:00Z). Usar junto con 'end'."),
+                end: z.string().optional().describe("Fecha de fin en ISO 8601 (ej: 2025-11-02T00:00:00Z). Usar junto con 'start'."),
+                last: z.number().optional().describe("Minutos hacia atrás desde ahora. Se usa si no se proporcionan 'start' y 'end'. Por defecto 60."),
                 timezone: z.string().optional().describe("Zona horaria. Por defecto Europe/Madrid."),
                 limit: z.number().optional().describe("Número máximo de resultados. Por defecto 1000."),
-                export_format: z.enum(["json", "csv", "xml"]).optional().describe("Formato de exportación de los datos. Por defecto json.")
+                export_format: z.enum(["json", "csv", "xml"]).optional().describe("Formato de exportación. Por defecto json.")
             })
         },
         async (params = {}) => {
@@ -83,4 +89,34 @@ export function registerTools(server) {
             };
         }
     );
+
+    server.registerTool(
+        "get-measurements-query-aggregation",
+        {
+            description: "Consulta datos agregados de mediciones (avg, min, max, sum, count, last) agrupados por intervalos de tiempo. Permite filtrar por device_id, magnitude y tags.",
+            inputSchema: z.object({
+                device_id: z.string().optional().describe("ID del dispositivo a filtrar."),
+                magnitude: z.string().optional().describe("Magnitud a filtrar (temperatura, humedad, co2, etc.)."),
+                tags: z.array(z.object({
+                    field: z.string().describe("Campo del tag por el que filtrar."),
+                    values: z.array(z.string()).describe("Valores del tag. Múltiples valores se evalúan con OR.")
+                })).optional().describe("Filtros por tags. Múltiples objetos tag se combinan con AND."),
+                start: z.string().optional().describe("Fecha de inicio en ISO 8601 (ej: 2025-11-01T00:00:00Z). Usar junto con 'end'."),
+                end: z.string().optional().describe("Fecha de fin en ISO 8601 (ej: 2025-11-02T00:00:00Z). Usar junto con 'start'."),
+                last: z.number().optional().describe("Minutos hacia atrás desde ahora. Se usa si no se proporcionan 'start' y 'end'. Por defecto 60."),
+                timezone: z.string().optional().describe("Zona horaria. Por defecto Europe/Madrid."),
+                operations: z.enum(["avg", "min", "max", "sum", "count", "last"]).optional().describe("Función estadística a aplicar. Por defecto avg."),
+                interval_minutes: z.number().optional().describe("Intervalo de agrupación en minutos. Por defecto 60."),
+                group_by: z.enum(["device_id", "magnitude"]).optional().describe("Campo por el que agrupar. Por defecto device_id."),
+                export_format: z.enum(["json", "csv", "xml"]).optional().describe("Formato de exportación. Por defecto json.")
+            })
+        },
+        async (params = {}) => {
+            const result = await OpenApiMeasurements.fetchOpenApiQueryAggregation(params);
+            return {
+                content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+            };
+        }
+    );
+
 }

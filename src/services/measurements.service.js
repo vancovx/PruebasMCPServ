@@ -86,26 +86,27 @@ export const OpenApiMeasurements = {
         }
     },
 
-    async fetchOpenApiQueryData({ device_id = null, magnitude = null, last = 60, timezone = "Europe/Madrid", limit = 1000, export_format = "json" } = {}) {
+    async fetchOpenApiQueryData({ device_id = null, magnitude = null, tags = [], start = null, end = null, last = 60, timezone = "Europe/Madrid", limit = 1000, export_format = "json" } = {}) {
         try {
             const filters = [];
             if (device_id) filters.push({ field: "device_id", values: [device_id] });
             if (magnitude) filters.push({ field: "magnitude", values: [magnitude] });
 
+            const time_range = start && end
+                ? { start, end, timezone }
+                : { last: last ?? 60, timezone };
+
             const body = {
-                time_range: {
-                    last,
-                    timezone
-                },
-                filters,
-                options: {
-                    limit
-                },
+                time_range,
+                ...(filters.length > 0 && { filters }),
+                ...(tags && tags.length > 0 && { tags }),
+                options: { limit },
                 export_format
             };
 
             const response = await axios.post(
-                `${process.env.KUNNA_ENDPOINT_API}/openapi/measurements/query/data`, body,
+                `${process.env.KUNNA_ENDPOINT_API}/openapi/measurements/query/data`,
+                body,
                 {
                     headers: {
                         'x-token-open-api': `${process.env.KUNNA_API_TOKEN_AGUA}`,
@@ -117,7 +118,52 @@ export const OpenApiMeasurements = {
             return response.data;
 
         } catch (error) {
-            if (error.response) { return { error: true, status: error.response.status, message: error.response.data?.message || JSON.stringify(error.response.data) };
+            if (error.response) {
+                return { error: true, status: error.response.status, message: error.response.data?.message || JSON.stringify(error.response.data) };
+            }
+            return { error: true, message: error.message };
+        }
+    },
+
+    async fetchOpenApiQueryAggregation({ device_id = null, magnitude = null, start = null, end = null, last = 60, timezone = "Europe/Madrid", operations = "avg", interval_minutes = 60, group_by = "device_id", export_format = "json" } = {}) {
+        try {
+            const filters = [];
+            if (device_id) filters.push({ field: "device_id", values: [device_id] });
+            if (magnitude) filters.push({ field: "magnitude", values: [magnitude] });
+
+            const time_range = start && end
+                ? { start, end, timezone }
+                : { last: last ?? 60, timezone };
+
+            const body = {
+                time_range,
+                aggregation: {
+                    operations,
+                    interval_minutes,
+                    group_by
+                },
+                ...(filters.length > 0 && { filters }),
+                ...(tags && tags.length > 0 && { tags }),
+                export_format
+                
+            };
+
+            const response = await axios.post(
+                `${process.env.KUNNA_ENDPOINT_API}/openapi/measurements/query/data/aggregation`,
+                body,
+                {
+                    headers: {
+                        'x-token-open-api': `${process.env.KUNNA_API_TOKEN_AGUA}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            return response.data;
+
+        } catch (error) {
+            if (error.response) {
+                return { error: true, status: error.response.status, message: error.response.data?.message || JSON.stringify(error.response.data)};
             }
             return { error: true, message: error.message };
         }
