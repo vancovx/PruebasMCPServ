@@ -109,7 +109,7 @@ export const OpenApiMeasurements = {
                 body,
                 {
                     headers: {
-                        'x-token-open-api': `${process.env.KUNNA_API_TOKEN_AGUA}`,
+                        'x-token-open-api': `${process.env.KUNNA_API_TOKEN_LUZ}`,
                         'Content-Type': 'application/json'
                     }
                 }
