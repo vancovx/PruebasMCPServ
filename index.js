@@ -1,6 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import { registerTools } from "./src/tools/registerTool.js";
+import { registerPrompts } from "./src/prompts/registerPrompts.js";
 
 // Librerias MCP 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"; 
@@ -22,11 +23,11 @@ dotenv.config({path: join(process.cwd(), 'src/config/.env'), debug: false});
 
 // Configurar MCP Server 
 function createMcpServer() {
-    const server = new McpServer({name: "mcp-server1-prueba", version: "1.0.0"}, {capabilities: { tools: {}}});
+    const server = new McpServer({name: "mcp-server1-prueba", version: "1.0.0"}, {capabilities: { tools: {}, prompts: {} }});
 
-    //TODO: Registrar herramientas en el servidor MCP
+    // Registrar herramientas y prompts
     registerTools(server);
-
+    registerPrompts(server);
 
     return server;
 }
