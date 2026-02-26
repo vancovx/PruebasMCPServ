@@ -62,7 +62,7 @@ export function registerTools(server) {
             })
         },
         async ({ collection = "agua", device_id }) => {
-            const result = await OpenApiMeasurements.fetchOpenApiMetadaDevice(device_id);
+            const result = await OpenApiMeasurements.fetchOpenApiMetadaDevice(collection, device_id);
             return {
                 content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
             };
