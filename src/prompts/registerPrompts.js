@@ -4,10 +4,11 @@ import { z } from "zod";
 export function registerPrompts(server) {
 
     server.registerPrompt(
-        "Informe-Dispositivo-Rango-Fechas",  
+        "Informe-Luz-Alias",  
         {
             description: "Genera un informe detallado sobre las mediciones de un dispositivo dentro de un rango de fechas específico.",
             inputSchema: z.object({
+                collection: z.enum(["agua", "luz"]).describe("Colección de la que se quiere obtener la información. Por defecto 'agua'."),
                 device_id: z.string().describe("El ID del dispositivo del que se desea generar el informe."),
                 start: z.string().describe("Fecha de inicio del rango para el informe (formato ISO 8601)."),
                 end: z.string().describe("Fecha de fin del rango para el informe (formato ISO 8601)."),
