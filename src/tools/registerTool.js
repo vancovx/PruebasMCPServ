@@ -57,10 +57,11 @@ export function registerTools(server) {
         {
             description: "Obtiene los metadatos asociados a un dispositivo (geolocalización, nombre, ubicación, organización, tipo de métrica, etc.).",
             inputSchema: z.object({
+                collection: z.enum(["agua", "luz"]).describe("Colección de la que se quiere obtener la información. Por defecto 'agua'."),
                 device_id: z.string().describe("Identificador del dispositivo del que se quieren obtener los metadatos.")
             })
         },
-        async ({ device_id }) => {
+        async ({ collection = "agua", device_id }) => {
             const result = await OpenApiMeasurements.fetchOpenApiMetadaDevice(device_id);
             return {
                 content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
