@@ -5,11 +5,11 @@ import dotenv from "dotenv";
 
 // Dependiendo del token que se use, se podrá acceder a la información de una colección u otra.
 export const OpenApiMeasurements = {
-    async fetchOpenApiInfo() {
+    async fetchOpenApiInfo(collection = "agua") {
         try {
             const response = await axios.get(`${process.env.KUNNA_ENDPOINT_API}/openapi/measurements/info`, {
                 headers: {
-                    'x-token-open-api': `${process.env.KUNNA_API_TOKEN_AGUA}`,
+                    'x-token-open-api': `${process.env[`KUNNA_API_TOKEN_${collection.toUpperCase()}`]}`,
                 },
             });
 
@@ -23,11 +23,11 @@ export const OpenApiMeasurements = {
         }
     },
 
-    async fetchOpenApiDevices() {
+    async fetchOpenApiDevices(collection = "agua") {
         try {
             const response = await axios.get(`${process.env.KUNNA_ENDPOINT_API}/openapi/measurements/devices`, {
                 headers: {
-                    'x-token-open-api': `${process.env.KUNNA_API_TOKEN_AGUA}`,
+                    'x-token-open-api': `${process.env[`KUNNA_API_TOKEN_${collection.toUpperCase()}`]}`,
                 },
             });
 
@@ -42,14 +42,14 @@ export const OpenApiMeasurements = {
         }
     },
 
-    async fetchOpenApiMagnitudes(device_id = null) {
+    async fetchOpenApiMagnitudes(collection = "agua", device_id = null) {
         try {
             const params = {};
             if (device_id) params.device_id = device_id;
 
             const response = await axios.get(`${process.env.KUNNA_ENDPOINT_API}/openapi/measurements/magnitudes`, {
                 headers: {
-                    'x-token-open-api': `${process.env.KUNNA_API_TOKEN_AGUA}`,
+                    'x-token-open-api': `${process.env[`KUNNA_API_TOKEN_${collection.toUpperCase()}`] }`,
                 },
                 params: params
             });
@@ -66,12 +66,12 @@ export const OpenApiMeasurements = {
         }
     },
 
-    async fetchOpenApiMetadaDevice(device_id) {
+    async fetchOpenApiMetadaDevice(collection = "agua", device_id = null) {
         try {
 
             const response = await axios.get(`${process.env.KUNNA_ENDPOINT_API}/openapi/measurements/metadata/${device_id}`, {
                 headers: {
-                    'x-token-open-api': `${process.env.KUNNA_API_TOKEN_AGUA}`,
+                    'x-token-open-api': `${process.env[`KUNNA_API_TOKEN_${collection.toUpperCase()}`]}`,
                 },
             });
 
@@ -86,7 +86,7 @@ export const OpenApiMeasurements = {
         }
     },
 
-    async fetchOpenApiQueryData({ device_id = null, magnitude = null, tags = [], start = null, end = null, last = 60, timezone = "Europe/Madrid", limit = 1000, export_format = "json" } = {}) {
+    async fetchOpenApiQueryData({ collection = "agua", device_id = null, magnitude = null, tags = [], start = null, end = null, last = 60, timezone = "Europe/Madrid", limit = 1000, export_format = "json" } = {}) {
         try {
             const filters = [];
             if (device_id) filters.push({ field: "device_id", values: [device_id] });
@@ -109,7 +109,7 @@ export const OpenApiMeasurements = {
                 body,
                 {
                     headers: {
-                        'x-token-open-api': `${process.env.KUNNA_API_TOKEN_LUZ}`,
+                        'x-token-open-api': `${process.env[`KUNNA_API_TOKEN_${collection.toUpperCase()}`]}`,
                         'Content-Type': 'application/json'
                     }
                 }
@@ -125,7 +125,7 @@ export const OpenApiMeasurements = {
         }
     },
 
-    async fetchOpenApiQueryAggregation({ device_id = null, magnitude = null, tags = [], start = null, end = null, last = 60, timezone = "Europe/Madrid", operations = "avg", interval_minutes = 60, group_by = "device_id", export_format = "json" } = {}) {
+    async fetchOpenApiQueryAggregation({ collection = "agua", device_id = null, magnitude = null, tags = [], start = null, end = null, last = 60, timezone = "Europe/Madrid", operations = "avg", interval_minutes = 60, group_by = "device_id", export_format = "json" } = {}) {
         try {
             const filters = [];
             if (device_id) filters.push({ field: "device_id", values: [device_id] });
@@ -153,7 +153,7 @@ export const OpenApiMeasurements = {
                 body,
                 {
                     headers: {
-                        'x-token-open-api': `${process.env.KUNNA_API_TOKEN_AGUA}`,
+                        'x-token-open-api': `${process.env[`KUNNA_API_TOKEN_${collection.toUpperCase()}`]}`,
                         'Content-Type': 'application/json'
                     }
                 }

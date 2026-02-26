@@ -7,10 +7,12 @@ export function registerTools(server) {
         "get-measurements-info",  
         {
             description: "Proporciona información sobre la fuente de datos que se va a consultar, dependiendo del Token se recibe información de una coleccion u otra.",
-            inputSchema: z.object({})
+            inputSchema: z.object({
+                collection: z.enum(["agua", "luz"]).describe("Colección de la que se quiere obtener la información. Por defecto 'agua'.")
+            })
         },
-        async () => {
-            const result = await OpenApiMeasurements.fetchOpenApiInfo();
+        async ({ collection = "agua" }) => {
+            const result = await OpenApiMeasurements.fetchOpenApiInfo(collection);
             return {
                 content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
             };
@@ -21,10 +23,12 @@ export function registerTools(server) {
         "get-measurements-devices",
         {
             description: "Obtiene la lista de dispositivos disponibles que han emitido mediciones.",
-            inputSchema: z.object({})
+            inputSchema: z.object({
+                collection: z.enum(["agua", "luz"]).describe("Colección de la que se quiere obtener la información. Por defecto 'agua'.")
+            })
         },
-        async () => {
-            const result = await OpenApiMeasurements.fetchOpenApiDevices();
+        async ({ collection = "agua" }) => {
+            const result = await OpenApiMeasurements.fetchOpenApiDevices(collection);
             return {
                 content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
             };
@@ -36,11 +40,12 @@ export function registerTools(server) {
         {
             description: "Lista las magnitudes disponibles que han sido emitidas por los dispositivos (temperatura, humedad, co2, etc.). Opcionalmente se puede filtrar por dispositivo.",
             inputSchema: z.object({
+                collection: z.enum(["agua", "luz"]).describe("Colección de la que se quiere obtener la información. Por defecto 'agua'."),
                 device_id: z.string().optional().describe("ID del dispositivo para filtrar las magnitudes que ha emitido. Si no se proporciona, devuelve todas.")
             })
         },
-        async ({ device_id } = {}) => {
-            const result = await OpenApiMeasurements.fetchOpenApiMagnitudes(device_id);
+        async ({ collection = "agua", device_id } = {}) => {
+            const result = await OpenApiMeasurements.fetchOpenApiMagnitudes(collection, device_id);
             return {
                 content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
             };
@@ -68,6 +73,7 @@ export function registerTools(server) {
         {
             description: "Consulta series temporales de mediciones. Permite filtrar por device_id, magnitude y tags. El rango temporal puede definirse con fechas absolutas (start/end) o relativo en minutos (last).",
             inputSchema: z.object({
+                collection: z.enum(["agua", "luz"]).describe("Colección de la que se quiere obtener la información. Por defecto 'agua'."),
                 device_id: z.string().optional().describe("ID del dispositivo a filtrar."),
                 magnitude: z.string().optional().describe("Magnitud a filtrar (temperatura, humedad, co2, etc.)."),
                 tags: z.array(z.object({
@@ -95,6 +101,7 @@ export function registerTools(server) {
         {
             description: "Consulta datos agregados de mediciones (avg, min, max, sum, count, last) agrupados por intervalos de tiempo. Permite filtrar por device_id, magnitude y tags.",
             inputSchema: z.object({
+                collection: z.enum(["agua", "luz"]).describe("Colección de la que se quiere obtener la información. Por defecto 'agua'."),
                 device_id: z.string().optional().describe("ID del dispositivo a filtrar."),
                 magnitude: z.string().optional().describe("Magnitud a filtrar (temperatura, humedad, co2, etc.)."),
                 tags: z.array(z.object({
