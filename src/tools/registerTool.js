@@ -128,4 +128,54 @@ export function registerTools(server) {
         }
     );
 
+    server.registerTool(
+        "get-measurements-sigua-codes",
+        {
+            description: "Obtiene el código SIGUA de edificio de cada dispositivo a partir de sus metadatos.",
+            inputSchema: z.object({
+                collection: z.enum(["agua", "luz"]).describe("Colección de la que se quiere obtener la información. Por defecto 'agua'.")
+            })
+        },
+        async ({ collection = "agua" } = {}) => {
+            const result = await OpenApiMeasurements.fetchOpenApiQueryData({
+                collection,
+                last: 10080, // 7 días para garantizar datos de todos los dispositivos
+                include_metadata: true,
+                limit: 1000
+            });
+
+            if (result.error) {
+                return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+            }
+
+            const records = result?.data?.records ?? [];
+            const metadataList = result?.data?.metadata ?? [];
+
+            // Crear mapa metadata_id -> metadata
+            const metadataMap = new Map(metadataList.map(m => [m.metadata_id, m]));
+
+            // Deduplicar por device_id y cruzar con metadata
+            const seen = new Set();
+            const siguas = [];
+
+            for (const record of records) {
+                if (seen.has(record.device_id)) continue;
+                seen.add(record.device_id);
+
+                const meta = metadataMap.get(record.metadata_id) ?? {};
+                const customFields = meta?.custom_fields ?? {};
+
+                siguas.push({
+                    device_id: record.device_id,
+                    alias: meta?.alias ?? null,
+                    sigua_edificio: customFields?.sigua_edificio ?? null,
+                });
+            }
+
+            return {
+                content: [{ type: "text", text: JSON.stringify({ data: siguas }, null, 2) }]
+            };
+        }
+    );
+
 }
