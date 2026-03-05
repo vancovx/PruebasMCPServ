@@ -3,6 +3,25 @@ import axios from 'axios';
 import dotenv from "dotenv";
 
 
+// Helper para parsear fechas en formato DD-MM-YYYY, YYYY-MM-DD o ISO 8601
+function parseDate(dateStr, isEnd = false) {
+    if (!dateStr) return null;
+
+    // ISO 8601 completo → sin cambios
+    if (dateStr.includes("T")) return dateStr;
+
+    // Formato DD-MM-YYYY → convertir a YYYY-MM-DD
+    if (dateStr.match(/^\d{2}-\d{2}-\d{4}$/)) {
+        const [day, month, year] = dateStr.split("-");
+        dateStr = `${year}-${month}-${day}`;
+    }
+
+    return isEnd
+        ? `${dateStr}T23:59:59.000Z`
+        : `${dateStr}T00:00:00.000Z`;
+}
+
+
 // Dependiendo del token que se use, se podrá acceder a la información de una colección u otra.
 export const OpenApiMeasurements = {
     async fetchOpenApiInfo(collection = "agua") {
@@ -86,21 +105,24 @@ export const OpenApiMeasurements = {
         }
     },
 
-    async fetchOpenApiQueryData({ collection = "agua", device_id = null, magnitude = null, tags = [], start = null, end = null, last = 60, timezone = "Europe/Madrid", limit = 1000, export_format = "json" } = {}) {
+    async fetchOpenApiQueryData({ collection = "agua", device_id = null, magnitude = null, tags = [], start = null, end = null, last = 60, timezone = "Europe/Madrid", limit = 1000, include_metadata = false, export_format = "json" } = {}) {
         try {
             const filters = [];
             if (device_id) filters.push({ field: "device_id", values: [device_id] });
             if (magnitude) filters.push({ field: "magnitude", values: [magnitude] });
 
-            const time_range = start && end
-                ? { start, end, timezone }
+            const parsedStart = parseDate(start);
+            const parsedEnd = parseDate(end, true);
+
+            const time_range = parsedStart && parsedEnd
+                ? { start: parsedStart, end: parsedEnd, timezone }
                 : { last: last ?? 60, timezone };
 
             const body = {
                 time_range,
                 ...(filters.length > 0 && { filters }),
                 ...(tags && tags.length > 0 && { tags }),
-                options: { limit },
+                options: { limit, ...(include_metadata && { include_metadata: true }) },
                 export_format
             };
 
@@ -131,8 +153,11 @@ export const OpenApiMeasurements = {
             if (device_id) filters.push({ field: "device_id", values: [device_id] });
             if (magnitude) filters.push({ field: "magnitude", values: [magnitude] });
 
-            const time_range = start && end
-                ? { start, end, timezone }
+            const parsedStart = parseDate(start);
+            const parsedEnd = parseDate(end, true);
+
+            const time_range = parsedStart && parsedEnd
+                ? { start: parsedStart, end: parsedEnd, timezone }
                 : { last: last ?? 60, timezone };
 
             const body = {
@@ -168,7 +193,4 @@ export const OpenApiMeasurements = {
             return { error: true, message: error.message };
         }
     },
-
-
-
-}; 
+};

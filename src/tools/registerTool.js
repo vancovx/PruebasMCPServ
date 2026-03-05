@@ -86,6 +86,7 @@ export function registerTools(server) {
                 last: z.number().optional().describe("Minutos hacia atrás desde ahora. Se usa si no se proporcionan 'start' y 'end'. Por defecto 60."),
                 timezone: z.string().optional().describe("Zona horaria. Por defecto Europe/Madrid."),
                 limit: z.number().optional().describe("Número máximo de resultados. Por defecto 1000."),
+                include_metadata: z.boolean().optional().describe("Si es true, incluye los metadatos del dispositivo en la respuesta. Por defecto false."),
                 export_format: z.enum(["json", "csv", "xml"]).optional().describe("Formato de exportación. Por defecto json.")
             })
         },
