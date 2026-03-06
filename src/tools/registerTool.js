@@ -154,7 +154,6 @@ export function registerTools(server) {
             // Crear mapa metadata_id -> metadata
             const metadataMap = new Map(metadataList.map(m => [m.metadata_id, m]));
 
-            // Deduplicar por device_id y cruzar con metadata
             const seen = new Set();
             const siguas = [];
 

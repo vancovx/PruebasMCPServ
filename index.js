@@ -21,7 +21,7 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 //TODO: Configurar Middlewares de Express, CORS, seguridad helmet y demas cosas que se necesiten para el servidor Express.
 
 // Configuracion de variables de entorno
-dotenv.config({path: join(process.cwd(), 'src/config/.env'), debug: false}); 
+dotenv.config({ path: join(process.cwd(), 'src/config/.env'), quiet: true });
 
 
 // Configurar MCP Server 

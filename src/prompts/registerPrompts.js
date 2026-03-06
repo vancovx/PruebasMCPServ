@@ -18,12 +18,13 @@ export function registerPrompts(server) {
         },
 
         async ({ device_id, start, end, magnitude }) => {
-            messages: [
-                { 
-                    role: "system", 
-                    content: "Eres un asistente experto en análisis de datos de sensores IoT. Tu tarea es generar un informe detallado sobre las mediciones de un dispositivo específico dentro de un rango de fechas determinado. El informe debe incluir estadísticas clave, tendencias, anomalías y cualquier insight relevante basado en los datos disponibles." 
-                },
-                {
+            return {
+                messages: [
+                    { 
+                        role: "system", 
+                        content: "Eres un asistente experto en análisis de datos de sensores IoT. Tu tarea es generar un informe detallado sobre las mediciones de un dispositivo específico dentro de un rango de fechas determinado. El informe debe incluir estadísticas clave, tendencias, anomalías y cualquier insight relevante basado en los datos disponibles." 
+                    },
+                    {
                     role: "user",
                     type: "text",
                     text: `Eres un experto en análisis de datos de sensores IoT. 
@@ -54,9 +55,10 @@ export function registerPrompts(server) {
                         Un párrafo breve con las conclusiones clave del período analizado.`,
                 }
 
-            ]
+                ]
+            };
         }
     );
 
-};
+}
 
