@@ -1,13 +1,15 @@
 // Rutas para obtener la información de la OpenAPI.
 import axios from 'axios';
 import dotenv from "dotenv";
+import { DateTime } from "luxon";
 
 
 // Helper para parsear fechas en formato DD-MM-YYYY, YYYY-MM-DD o ISO 8601
-function parseDate(dateStr, isEnd = false) {
+// Ahora convierte correctamente la hora local (Europe/Madrid) a UTC
+function parseDate(dateStr, isEnd = false, timezone = "Europe/Madrid") {
     if (!dateStr) return null;
 
-    // ISO 8601 completo → sin cambios
+    // ISO 8601 completo (con T) → ya tiene zona, devolver tal cual
     if (dateStr.includes("T")) return dateStr;
 
     // Formato DD-MM-YYYY → convertir a YYYY-MM-DD
@@ -16,9 +18,20 @@ function parseDate(dateStr, isEnd = false) {
         dateStr = `${year}-${month}-${day}`;
     }
 
-    return isEnd
-        ? `${dateStr}T23:59:59.000Z`
-        : `${dateStr}T00:00:00.000Z`;
+    // Crear la fecha en la zona horaria local y convertir a UTC
+    // Así "2026-03-01" en Madrid → 2026-02-28T23:00:00.000Z (UTC) en invierno
+    //                             → 2026-02-29T22:00:00.000Z (UTC) en verano
+    if (isEnd) {
+        return DateTime
+            .fromISO(`${dateStr}T23:59:59`, { zone: timezone })
+            .toUTC()
+            .toISO();
+    } else {
+        return DateTime
+            .fromISO(`${dateStr}T00:00:00`, { zone: timezone })
+            .toUTC()
+            .toISO();
+    }
 }
 
 
@@ -111,12 +124,24 @@ export const OpenApiMeasurements = {
             if (device_id) filters.push({ field: "device_id", values: [device_id] });
             if (magnitude) filters.push({ field: "magnitude", values: [magnitude] });
 
-            const parsedStart = parseDate(start);
-            const parsedEnd = parseDate(end, true);
+            const parsedStart = parseDate(start, false, timezone);
+            const parsedEnd = parseDate(end, true, timezone);
 
-            const time_range = parsedStart && parsedEnd
-                ? { start: parsedStart, end: parsedEnd, timezone }
-                : { last: last ?? 60, timezone };
+            let time_range;
+            if (parsedStart && parsedEnd) {
+                // Fechas absolutas: ya convertidas a UTC por parseDate
+                time_range = { start: parsedStart, end: parsedEnd, timezone };
+            } else {
+                // Relativo: calcular start/end explícitamente en UTC
+                // para evitar ambigüedades con "last" y zonas horarias
+                const now = DateTime.now().setZone(timezone);
+                const from = now.minus({ minutes: last ?? 60 });
+                time_range = {
+                    start: from.toUTC().toISO(),
+                    end: now.toUTC().toISO(),
+                    timezone
+                };
+            }
 
             const body = {
                 time_range,
@@ -153,12 +178,23 @@ export const OpenApiMeasurements = {
             if (device_id) filters.push({ field: "device_id", values: [device_id] });
             if (magnitude) filters.push({ field: "magnitude", values: [magnitude] });
 
-            const parsedStart = parseDate(start);
-            const parsedEnd = parseDate(end, true);
+            const parsedStart = parseDate(start, false, timezone);
+            const parsedEnd = parseDate(end, true, timezone);
 
-            const time_range = parsedStart && parsedEnd
-                ? { start: parsedStart, end: parsedEnd, timezone }
-                : { last: last ?? 60, timezone };
+            let time_range;
+            if (parsedStart && parsedEnd) {
+                // Fechas absolutas: ya convertidas a UTC por parseDate
+                time_range = { start: parsedStart, end: parsedEnd, timezone };
+            } else {
+                // Relativo: calcular start/end explícitamente en UTC
+                const now = DateTime.now().setZone(timezone);
+                const from = now.minus({ minutes: last ?? 60 });
+                time_range = {
+                    start: from.toUTC().toISO(),
+                    end: now.toUTC().toISO(),
+                    timezone
+                };
+            }
 
             const body = {
                 time_range,
