@@ -3,17 +3,16 @@ import axios from 'axios';
 import dotenv from "dotenv";
 import { DateTime } from "luxon";
 
-
-// Helper para parsear fechas en formato DD-MM-YYYY, YYYY-MM-DD o ISO 8601
-// Ahora convierte correctamente la hora local (Europe/Madrid) a UTC
 function parseDate(dateStr, isEnd = false, timezone = "Europe/Madrid") {
+    // Fecha: (15-12-25) o (2025-12-15) o (2025-12-15T14:30:00Z)
     if (!dateStr) return null;
 
-    // ISO 8601 completo (con T) → ya tiene zona, devolver tal cual
+    // ISO 8601 (YYYY-MM-DD) completo (con T) → ya esta en zona, devolver tal cual
     if (dateStr.includes("T")) return dateStr;
 
-    // Formato DD-MM-YYYY → convertir a YYYY-MM-DD
+    // Si es Formato DD-MM-YYYY → convertir a YYYY-MM-DD
     if (dateStr.match(/^\d{2}-\d{2}-\d{4}$/)) {
+
         const [day, month, year] = dateStr.split("-");
         dateStr = `${year}-${month}-${day}`;
     }
@@ -34,10 +33,9 @@ function parseDate(dateStr, isEnd = false, timezone = "Europe/Madrid") {
     }
 }
 
-
 // Dependiendo del token que se use, se podrá acceder a la información de una colección u otra.
 export const OpenApiMeasurements = {
-    async fetchOpenApiInfo(collection = "agua") {
+    async fetchOpenApiInfo(collection = "energy") {
         try {
             const response = await axios.get(`${process.env.KUNNA_ENDPOINT_API}/openapi/measurements/info`, {
                 headers: {
@@ -55,7 +53,7 @@ export const OpenApiMeasurements = {
         }
     },
 
-    async fetchOpenApiDevices(collection = "agua") {
+    async fetchOpenApiDevices(collection = "energy") {
         try {
             const response = await axios.get(`${process.env.KUNNA_ENDPOINT_API}/openapi/measurements/devices`, {
                 headers: {
@@ -74,7 +72,7 @@ export const OpenApiMeasurements = {
         }
     },
 
-    async fetchOpenApiMagnitudes(collection = "agua", device_id = null) {
+    async fetchOpenApiMagnitudes(collection = "energy", device_id = null) {
         try {
             const params = {};
             if (device_id) params.device_id = device_id;
@@ -98,7 +96,7 @@ export const OpenApiMeasurements = {
         }
     },
 
-    async fetchOpenApiMetadaDevice(collection = "agua", device_id = null) {
+    async fetchOpenApiMetadaDevice(collection = "energy", device_id = null) {
         try {
 
             const response = await axios.get(`${process.env.KUNNA_ENDPOINT_API}/openapi/measurements/metadata/${device_id}`, {
@@ -118,7 +116,7 @@ export const OpenApiMeasurements = {
         }
     },
 
-    async fetchOpenApiQueryData({ collection = "agua", device_id = null, magnitude = null, tags = [], start = null, end = null, last = 60, timezone = "Europe/Madrid", limit = 1000, include_metadata = false, export_format = "json" } = {}) {
+    async fetchOpenApiQueryData({ collection = "energy", device_id = null, magnitude = null, tags = [], start = null, end = null, last = 60, timezone = "Europe/Madrid", limit = 1000, include_metadata = false, export_format = "json" } = {}) {
         try {
             const filters = [];
             if (device_id) filters.push({ field: "device_id", values: [device_id] });
@@ -172,7 +170,7 @@ export const OpenApiMeasurements = {
         }
     },
 
-    async fetchOpenApiQueryAggregation({ collection = "agua", device_id = null, magnitude = null, tags = [], start = null, end = null, last = 60, timezone = "Europe/Madrid", operations = "avg", interval_minutes = 60, group_by = "device_id", export_format = "json" } = {}) {
+    async fetchOpenApiQueryAggregation({ collection = "energy", device_id = null, magnitude = null, tags = [], start = null, end = null, last = 60, timezone = "Europe/Madrid", operations = "avg", interval_minutes = 60, group_by = "device_id", export_format = "json" } = {}) {
         try {
             const filters = [];
             if (device_id) filters.push({ field: "device_id", values: [device_id] });

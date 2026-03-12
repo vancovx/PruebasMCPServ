@@ -8,7 +8,64 @@ export function registerTools(server) {
         {
             description: "Proporciona información sobre la fuente de datos que se va a consultar, dependiendo del Token se recibe información de una coleccion u otra.",
             inputSchema: z.object({
-                collection: z.enum(["agua", "luz"]).describe("Colección de la que se quiere obtener la información. Por defecto 'agua'.")
+            collection: z.enum([
+                    "bim",
+                    "water",
+                    "energy",
+                    "weather",
+                    "sensotran",
+                    "roomsensors",
+                    "light",
+                    "fv",
+                    "irrigation",
+                    "bibliotecaindoorambiental",
+                    "wifi",
+                    "gva_weather",
+                ]).describe(
+                    `Colección de datos IoT a consultar. Selecciona según el tipo de consulta del usuario:\n` +
+
+                    `- 'bim': Sensores IoT de suelo Dragino LSE01 en jardines del campus y caudalímetro CZUS/50. ` +
+                        `Miden humedad del suelo, temperatura del suelo y conductividad eléctrica (tecnología FDR con compensación por temperatura y calibración de fábrica para suelos minerales). ` +
+                        `Usar cuando pregunten por: estado del suelo, humedad de tierra, jardines inteligentes, conductividad del terreno, sensores de suelo, caudalímetro.\n` +
+
+                    `- 'water': Consumo de agua potable en edificios del campus. ` +
+                        `Usar cuando pregunten por: litros, m³, consumo de agua, gasto hídrico, fugas de agua, contadores de agua, agua potable.\n` +
+
+                    `- 'energy': Consumo eléctrico de edificios y zonas comunes del campus de la Universidad de Alicante (kWh). ` +
+                        `Usar cuando pregunten por: electricidad, consumo eléctrico, kilovatios, potencia eléctrica, factura de luz, contadores eléctricos.\n` +
+
+                    `- 'weather': Estación meteorológica propia instalada en el campus de la Universidad de Alicante. ` +
+                        `Usar cuando pregunten por: temperatura exterior del campus, viento en la universidad, lluvia en el campus, humedad ambiente, presión atmosférica, clima del campus.\n` +
+
+                    `- 'sensotran': Sensores de prevención y seguridad de gases. ` +
+                        `Miden concentraciones de monóxido de carbono (CO), hidrógeno (H₂), compuestos orgánicos volátiles (VOC) y gases inflamables. ` +
+                        `Objetivo: evaluar seguridad, detectar fugas y validar el sistema antes de despliegue definitivo. ` +
+                        `Usar cuando pregunten por: detección de gases, fugas de gas, seguridad de gases, CO, hidrógeno, VOC exterior, gases inflamables.\n` +
+
+                    `- 'roomsensors': Calidad ambiental interior de salas, aulas y despachos. ` +
+                        `Miden CO2, temperatura interior, humedad interior y VOC. ` +
+                        `Usar cuando pregunten por: CO2 en aulas, temperatura de una sala, humedad dentro de un edificio, calidad del aire interior, confort térmico, ventilación de salas.\n` +
+
+                    `- 'light': Luminarias de exterior instaladas en el campus universitario. ` +
+                        `Usar cuando pregunten por: farolas, alumbrado exterior, iluminación del campus, luminarias, luces exteriores.\n` +
+
+                    `- 'fv': Producción solar fotovoltaica de la Universidad de Alicante. ` +
+                        `Usar cuando pregunten por: paneles solares, producción solar, energía renovable, autoconsumo, fotovoltaica, generación solar.\n` +
+
+                    `- 'irrigation': Gestión de agua de riego de jardines y zonas verdes del campus. ` +
+                        `Usar cuando pregunten por: riego, aspersores, agua de riego, zonas verdes, jardines, programación de riego.\n` +
+
+                    `- 'bibliotecaindoorambiental': Sensores ambientales interiores específicos de la Biblioteca General. ` +
+                        `Usar cuando pregunten por: ambiente en la biblioteca, temperatura de la biblioteca, CO2 en la biblioteca, humedad en la biblioteca. ` +
+                        `NOTA: si preguntan por calidad ambiental de OTROS edificios, usar 'roomsensors' en su lugar.\n` +
+
+                    `- 'wifi': Datos de conectividad WiFi del campus. ` +
+                        `Usar cuando pregunten por: conexiones WiFi, usuarios conectados, cobertura WiFi, red inalámbrica, puntos de acceso, tráfico de red.\n` +
+
+                    `- 'gva.weather': Datos meteorológicos de la API de la Generalitat Valenciana (red de estaciones AVAMET/AEMET). ` +
+                        `Usar cuando pregunten por: meteorología regional, clima de la Comunidad Valenciana, estaciones meteorológicas de la GVA, comparar clima campus vs región. ` +
+                        `NOTA: si preguntan por meteorología específica del campus, usar 'weather' en su lugar.`
+                )
             })
         },
         async ({ collection = "agua" }) => {
