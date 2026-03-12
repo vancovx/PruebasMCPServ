@@ -3,11 +3,12 @@ import axios from 'axios';
 import dotenv from "dotenv";
 import { DateTime } from "luxon";
 
+// Función para poder poner las fechas en formato español (DD-MM-YYYY) o en formato ISO (YYYY-MM-DD) y convertirlas a UTC para la consulta a la API.
 function parseDate(dateStr, isEnd = false, timezone = "Europe/Madrid") {
     // Fecha: (15-12-25) o (2025-12-15) o (2025-12-15T14:30:00Z)
     if (!dateStr) return null;
 
-    // ISO 8601 (YYYY-MM-DD) completo (con T) → ya esta en zona, devolver tal cual
+    // Si ya es ISO 8601 (YYYY-MM-DD)
     if (dateStr.includes("T")) return dateStr;
 
     // Si es Formato DD-MM-YYYY → convertir a YYYY-MM-DD
@@ -17,9 +18,7 @@ function parseDate(dateStr, isEnd = false, timezone = "Europe/Madrid") {
         dateStr = `${year}-${month}-${day}`;
     }
 
-    // Crear la fecha en la zona horaria local y convertir a UTC
-    // Así "2026-03-01" en Madrid → 2026-02-28T23:00:00.000Z (UTC) en invierno
-    //                             → 2026-02-29T22:00:00.000Z (UTC) en verano
+    // Crear la fecha en la zona horaria local y convertir a UTC (Inverno o Verano)
     if (isEnd) {
         return DateTime
             .fromISO(`${dateStr}T23:59:59`, { zone: timezone })
@@ -130,8 +129,7 @@ export const OpenApiMeasurements = {
                 // Fechas absolutas: ya convertidas a UTC por parseDate
                 time_range = { start: parsedStart, end: parsedEnd, timezone };
             } else {
-                // Relativo: calcular start/end explícitamente en UTC
-                // para evitar ambigüedades con "last" y zonas horarias
+                // Relativo: calcular start/end explícitamente en UTC para evitar ambigüedades con "last" y zonas horarias
                 const now = DateTime.now().setZone(timezone);
                 const from = now.minus({ minutes: last ?? 60 });
                 time_range = {
