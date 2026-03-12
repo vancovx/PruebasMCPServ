@@ -1,74 +1,87 @@
 import { z } from "zod";
 import { OpenApiMeasurements } from "../services/measurements.service.js";
 
+
+
+// Schema reutilizable de colecciones para todas las herramientas.
+const collectionEnum = z.enum([
+    "bim",
+    "water",
+    "energy",
+    "weather",
+    "sensotran",
+    "roomsensors",
+    "light",
+    "fv",
+    "irrigation",
+    "bibliotecaindoorambiental",
+    "wifi",
+    "gva_weather",
+]).describe(
+    `Colección de datos IoT a consultar. Selecciona según el tipo de consulta del usuario:\n` +
+
+    `- 'bim': Sensores IoT de suelo Dragino LSE01 en jardines del campus y caudalímetro CZUS/50. ` +
+        `Miden humedad del suelo, temperatura del suelo y conductividad eléctrica (tecnología FDR con compensación por temperatura y calibración de fábrica para suelos minerales). ` +
+        `Usar cuando pregunten por: estado del suelo, humedad de tierra, jardines inteligentes, conductividad del terreno, sensores de suelo, caudalímetro.\n` +
+
+    `- 'water': Consumo de agua potable en edificios del campus. ` +
+        `Usar cuando pregunten por: litros, m³, consumo de agua, gasto hídrico, fugas de agua, contadores de agua, agua potable.\n` +
+
+    `- 'energy': Consumo eléctrico de edificios y zonas comunes del campus de la Universidad de Alicante (kWh). ` +
+        `Usar cuando pregunten por: electricidad, consumo eléctrico, kilovatios, potencia eléctrica, factura de luz, contadores eléctricos.\n` +
+
+    `- 'weather': Estación meteorológica propia instalada en el campus de la Universidad de Alicante. ` +
+        `Usar cuando pregunten por: temperatura exterior del campus, viento en la universidad, lluvia en el campus, humedad ambiente, presión atmosférica, clima del campus.\n` +
+
+    `- 'sensotran': Sensores de prevención y seguridad de gases. ` +
+        `Miden concentraciones de monóxido de carbono (CO), hidrógeno (H₂), compuestos orgánicos volátiles (VOC) y gases inflamables. ` +
+        `Objetivo: evaluar seguridad, detectar fugas y validar el sistema antes de despliegue definitivo. ` +
+        `Usar cuando pregunten por: detección de gases, fugas de gas, seguridad de gases, CO, hidrógeno, VOC exterior, gases inflamables.\n` +
+
+    `- 'roomsensors': Calidad ambiental interior de salas, aulas y despachos. ` +
+        `Miden CO2, temperatura interior, humedad interior y VOC. ` +
+        `Usar cuando pregunten por: CO2 en aulas, temperatura de una sala, humedad dentro de un edificio, calidad del aire interior, confort térmico, ventilación de salas.\n` +
+
+    `- 'light': Luminarias de exterior instaladas en el campus universitario. ` +
+        `Usar cuando pregunten por: farolas, alumbrado exterior, iluminación del campus, luminarias, luces exteriores.\n` +
+
+    `- 'fv': Producción solar fotovoltaica de la Universidad de Alicante. ` +
+        `Usar cuando pregunten por: paneles solares, producción solar, energía renovable, autoconsumo, fotovoltaica, generación solar.\n` +
+
+    `- 'irrigation': Gestión de agua de riego de jardines y zonas verdes del campus. ` +
+        `Usar cuando pregunten por: riego, aspersores, agua de riego, zonas verdes, jardines, programación de riego.\n` +
+
+    `- 'bibliotecaindoorambiental': Sensores ambientales interiores específicos de la Biblioteca General. ` +
+        `Usar cuando pregunten por: ambiente en la biblioteca, temperatura de la biblioteca, CO2 en la biblioteca, humedad en la biblioteca. ` +
+        `NOTA: si preguntan por calidad ambiental de OTROS edificios, usar 'roomsensors' en su lugar.\n` +
+
+    `- 'wifi': Datos de conectividad WiFi del campus. ` +
+        `Usar cuando pregunten por: conexiones WiFi, usuarios conectados, cobertura WiFi, red inalámbrica, puntos de acceso, tráfico de red.\n` +
+
+    `- 'gva_weather': Datos meteorológicos de la API de la Generalitat Valenciana (red de estaciones AVAMET/AEMET). ` +
+        `Usar cuando pregunten por: meteorología regional, clima de la Comunidad Valenciana, estaciones meteorológicas de la GVA, comparar clima campus vs región. ` +
+        `NOTA: si pregunten por meteorología específica del campus, usar 'weather' en su lugar.`
+);
+
+// Tools
 export function registerTools(server) {
 
+    // ─────────────────────────────────────────────────────────────────────────
+    //  1. INFO: Información general de la fuente de datos
+    // ─────────────────────────────────────────────────────────────────────────
     server.registerTool(
-        "get-measurements-info",  
+        "get-measurements-info",
         {
-            description: "Proporciona información sobre la fuente de datos que se va a consultar, dependiendo del Token se recibe información de una coleccion u otra.",
+            description:
+                "Devuelve información general sobre una colección de datos IoT: " +
+                "nombre, descripción, métricas disponibles y configuración. " +
+                "Usar como PRIMER PASO cuando el usuario pregunta '¿qué datos hay disponibles?' " +
+                "o cuando se necesita conocer la estructura de una colección antes de consultar datos.",
             inputSchema: z.object({
-            collection: z.enum([
-                    "bim",
-                    "water",
-                    "energy",
-                    "weather",
-                    "sensotran",
-                    "roomsensors",
-                    "light",
-                    "fv",
-                    "irrigation",
-                    "bibliotecaindoorambiental",
-                    "wifi",
-                    "gva_weather",
-                ]).describe(
-                    `Colección de datos IoT a consultar. Selecciona según el tipo de consulta del usuario:\n` +
-
-                    `- 'bim': Sensores IoT de suelo Dragino LSE01 en jardines del campus y caudalímetro CZUS/50. ` +
-                        `Miden humedad del suelo, temperatura del suelo y conductividad eléctrica (tecnología FDR con compensación por temperatura y calibración de fábrica para suelos minerales). ` +
-                        `Usar cuando pregunten por: estado del suelo, humedad de tierra, jardines inteligentes, conductividad del terreno, sensores de suelo, caudalímetro.\n` +
-
-                    `- 'water': Consumo de agua potable en edificios del campus. ` +
-                        `Usar cuando pregunten por: litros, m³, consumo de agua, gasto hídrico, fugas de agua, contadores de agua, agua potable.\n` +
-
-                    `- 'energy': Consumo eléctrico de edificios y zonas comunes del campus de la Universidad de Alicante (kWh). ` +
-                        `Usar cuando pregunten por: electricidad, consumo eléctrico, kilovatios, potencia eléctrica, factura de luz, contadores eléctricos.\n` +
-
-                    `- 'weather': Estación meteorológica propia instalada en el campus de la Universidad de Alicante. ` +
-                        `Usar cuando pregunten por: temperatura exterior del campus, viento en la universidad, lluvia en el campus, humedad ambiente, presión atmosférica, clima del campus.\n` +
-
-                    `- 'sensotran': Sensores de prevención y seguridad de gases. ` +
-                        `Miden concentraciones de monóxido de carbono (CO), hidrógeno (H₂), compuestos orgánicos volátiles (VOC) y gases inflamables. ` +
-                        `Objetivo: evaluar seguridad, detectar fugas y validar el sistema antes de despliegue definitivo. ` +
-                        `Usar cuando pregunten por: detección de gases, fugas de gas, seguridad de gases, CO, hidrógeno, VOC exterior, gases inflamables.\n` +
-
-                    `- 'roomsensors': Calidad ambiental interior de salas, aulas y despachos. ` +
-                        `Miden CO2, temperatura interior, humedad interior y VOC. ` +
-                        `Usar cuando pregunten por: CO2 en aulas, temperatura de una sala, humedad dentro de un edificio, calidad del aire interior, confort térmico, ventilación de salas.\n` +
-
-                    `- 'light': Luminarias de exterior instaladas en el campus universitario. ` +
-                        `Usar cuando pregunten por: farolas, alumbrado exterior, iluminación del campus, luminarias, luces exteriores.\n` +
-
-                    `- 'fv': Producción solar fotovoltaica de la Universidad de Alicante. ` +
-                        `Usar cuando pregunten por: paneles solares, producción solar, energía renovable, autoconsumo, fotovoltaica, generación solar.\n` +
-
-                    `- 'irrigation': Gestión de agua de riego de jardines y zonas verdes del campus. ` +
-                        `Usar cuando pregunten por: riego, aspersores, agua de riego, zonas verdes, jardines, programación de riego.\n` +
-
-                    `- 'bibliotecaindoorambiental': Sensores ambientales interiores específicos de la Biblioteca General. ` +
-                        `Usar cuando pregunten por: ambiente en la biblioteca, temperatura de la biblioteca, CO2 en la biblioteca, humedad en la biblioteca. ` +
-                        `NOTA: si preguntan por calidad ambiental de OTROS edificios, usar 'roomsensors' en su lugar.\n` +
-
-                    `- 'wifi': Datos de conectividad WiFi del campus. ` +
-                        `Usar cuando pregunten por: conexiones WiFi, usuarios conectados, cobertura WiFi, red inalámbrica, puntos de acceso, tráfico de red.\n` +
-
-                    `- 'gva.weather': Datos meteorológicos de la API de la Generalitat Valenciana (red de estaciones AVAMET/AEMET). ` +
-                        `Usar cuando pregunten por: meteorología regional, clima de la Comunidad Valenciana, estaciones meteorológicas de la GVA, comparar clima campus vs región. ` +
-                        `NOTA: si preguntan por meteorología específica del campus, usar 'weather' en su lugar.`
-                )
+                collection: collectionEnum
             })
         },
-        async ({ collection = "agua" }) => {
+        async ({ collection }) => {
             const result = await OpenApiMeasurements.fetchOpenApiInfo(collection);
             return {
                 content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
@@ -76,15 +89,23 @@ export function registerTools(server) {
         }
     );
 
+    // ─────────────────────────────────────────────────────────────────────────
+    //  2. DEVICES: Lista de dispositivos disponibles
+    // ─────────────────────────────────────────────────────────────────────────
     server.registerTool(
         "get-measurements-devices",
         {
-            description: "Obtiene la lista de dispositivos disponibles que han emitido mediciones.",
+            description:
+                "Devuelve la lista completa de dispositivos (sensores/contadores) que han emitido mediciones en una colección. " +
+                "Cada dispositivo incluye su ID único y alias descriptivo. " +
+                "Usar cuando el usuario pregunta: '¿qué sensores hay?', '¿qué contadores existen?', " +
+                "'lista de dispositivos', 'muéstrame los equipos disponibles'. " +
+                "También útil para obtener IDs de dispositivos antes de consultar datos con query-data o query-aggregation.",
             inputSchema: z.object({
-                collection: z.enum(["agua", "luz"]).describe("Colección de la que se quiere obtener la información. Por defecto 'agua'.")
+                collection: collectionEnum
             })
         },
-        async ({ collection = "agua" }) => {
+        async ({ collection }) => {
             const result = await OpenApiMeasurements.fetchOpenApiDevices(collection);
             return {
                 content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
@@ -92,16 +113,28 @@ export function registerTools(server) {
         }
     );
 
+    // ─────────────────────────────────────────────────────────────────────────
+    //  3. MAGNITUDES: Qué magnitudes mide cada dispositivo
+    // ─────────────────────────────────────────────────────────────────────────
     server.registerTool(
         "get-measurements-magnitudes",
         {
-            description: "Lista las magnitudes disponibles que han sido emitidas por los dispositivos (temperatura, humedad, co2, etc.). Opcionalmente se puede filtrar por dispositivo.",
+            description:
+                "Devuelve las magnitudes (tipos de medición) disponibles en una colección: " +
+                "temperatura, humedad, CO2, kWh, m³, etc. " +
+                "Se puede filtrar por un dispositivo concreto para ver solo sus magnitudes. " +
+                "Usar cuando el usuario pregunta: '¿qué mide este sensor?', '¿qué magnitudes hay?', " +
+                "'¿qué variables se registran?'. " +
+                "Útil antes de hacer una consulta query-data o query-aggregation para saber qué valor poner en el parámetro 'magnitude'.",
             inputSchema: z.object({
-                collection: z.enum(["agua", "luz"]).describe("Colección de la que se quiere obtener la información. Por defecto 'agua'."),
-                device_id: z.string().optional().describe("ID del dispositivo para filtrar las magnitudes que ha emitido. Si no se proporciona, devuelve todas.")
+                collection: collectionEnum,
+                device_id: z.string().optional().describe(
+                    "ID del dispositivo para filtrar sus magnitudes. " +
+                    "Si no se proporciona, devuelve todas las magnitudes de toda la colección."
+                )
             })
         },
-        async ({ collection = "agua", device_id } = {}) => {
+        async ({ collection, device_id } = {}) => {
             const result = await OpenApiMeasurements.fetchOpenApiMagnitudes(collection, device_id);
             return {
                 content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
@@ -109,16 +142,28 @@ export function registerTools(server) {
         }
     );
 
+    // ─────────────────────────────────────────────────────────────────────────
+    //  4. METADATA: Metadatos de un dispositivo concreto
+    // ─────────────────────────────────────────────────────────────────────────
     server.registerTool(
         "get-measurements-metadata-device",
         {
-            description: "Obtiene los metadatos asociados a un dispositivo (geolocalización, nombre, ubicación, organización, tipo de métrica, etc.).",
+            description:
+                "Devuelve los metadatos completos de un dispositivo específico: " +
+                "nombre, alias, geolocalización (lat/lon), ubicación dentro del edificio, " +
+                "organización, tipo de métrica, código SIGUA del edificio y campos personalizados. " +
+                "Usar cuando el usuario pregunta: '¿dónde está este sensor?', '¿qué es el dispositivo X?', " +
+                "'información del contador', 'ubicación del equipo'. " +
+                "Requiere el device_id, que se puede obtener previamente con get-measurements-devices o get-measurements-sigua-codes.",
             inputSchema: z.object({
-                collection: z.enum(["agua", "luz"]).describe("Colección de la que se quiere obtener la información. Por defecto 'agua'."),
-                device_id: z.string().describe("Identificador del dispositivo del que se quieren obtener los metadatos.")
+                collection: collectionEnum,
+                device_id: z.string().describe(
+                    "ID del dispositivo del que se quieren obtener los metadatos. " +
+                    "Se obtiene de get-measurements-devices o get-measurements-sigua-codes."
+                )
             })
         },
-        async ({ collection = "agua", device_id }) => {
+        async ({ collection, device_id }) => {
             const result = await OpenApiMeasurements.fetchOpenApiMetadaDevice(collection, device_id);
             return {
                 content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
@@ -126,25 +171,53 @@ export function registerTools(server) {
         }
     );
 
+    // ─────────────────────────────────────────────────────────────────────────
+    //  5. QUERY DATA: Series temporales de mediciones (datos crudos)
+    // ─────────────────────────────────────────────────────────────────────────
     server.registerTool(
         "get-measurements-query-data",
         {
-            description: "Consulta series temporales de mediciones. Permite filtrar por device_id, magnitude y tags. El rango temporal puede definirse con fechas absolutas (start/end) o relativo en minutos (last).",
+            description:
+                "Consulta datos CRUDOS de mediciones en series temporales. " +
+                "Devuelve cada lectura individual con su timestamp, valor y unidad. " +
+                "Usar cuando el usuario necesita: valores exactos, datos sin procesar, " +
+                "exportar lecturas, ver cada medición individual, detectar valores puntuales. " +
+                "Para obtener estadísticas (media, máximo, mínimo) o evolución por horas/días, " +
+                "usar get-measurements-query-aggregation en su lugar, que es más eficiente. " +
+                "El rango temporal se define con start/end (fechas absolutas) o last (minutos hacia atrás).",
             inputSchema: z.object({
-                collection: z.enum(["agua", "luz"]).describe("Colección de la que se quiere obtener la información. Por defecto 'agua'."),
-                device_id: z.string().optional().describe("ID del dispositivo a filtrar."),
-                magnitude: z.string().optional().describe("Magnitud a filtrar (temperatura, humedad, co2, etc.)."),
+                collection: collectionEnum,
+                device_id: z.string().optional().describe(
+                    "ID del dispositivo a filtrar. Sin este parámetro, devuelve datos de todos los dispositivos de la colección."
+                ),
+                magnitude: z.string().optional().describe(
+                    "Magnitud a filtrar (ej: 'temperature', 'humidity', 'co2', 'generalelectricity', 'electricityfacility'). " +
+                    "Usar get-measurements-magnitudes para ver las magnitudes disponibles en la colección."
+                ),
                 tags: z.array(z.object({
-                    field: z.string().describe("Campo del tag por el que filtrar (ej: origin, location, etc.)."),
+                    field: z.string().describe("Campo del tag por el que filtrar (ej: 'origin', 'location', 'building')."),
                     values: z.array(z.string()).describe("Valores del tag. Múltiples valores se evalúan con OR.")
-                })).optional().describe("Filtros por tags. Múltiples objetos tag se combinan con AND."),
-                start: z.string().optional().describe("Fecha de inicio en ISO 8601 (ej: 2025-11-01T00:00:00Z). Usar junto con 'end'."),
-                end: z.string().optional().describe("Fecha de fin en ISO 8601 (ej: 2025-11-02T00:00:00Z). Usar junto con 'start'."),
-                last: z.number().optional().describe("Minutos hacia atrás desde ahora. Se usa si no se proporcionan 'start' y 'end'. Por defecto 60."),
-                timezone: z.string().optional().describe("Zona horaria. Por defecto Europe/Madrid."),
-                limit: z.number().optional().describe("Número máximo de resultados. Por defecto 1000."),
-                include_metadata: z.boolean().optional().describe("Si es true, incluye los metadatos del dispositivo en la respuesta. Por defecto false."),
-                export_format: z.enum(["json", "csv", "xml"]).optional().describe("Formato de exportación. Por defecto json.")
+                })).optional().describe("Filtros adicionales por tags. Múltiples objetos tag se combinan con AND."),
+                start: z.string().optional().describe(
+                    "Fecha de inicio en ISO 8601 (ej: '2025-11-01T00:00:00Z'). Usar junto con 'end'. " +
+                    "Si no se proporcionan start/end, se usa el parámetro 'last'."
+                ),
+                end: z.string().optional().describe(
+                    "Fecha de fin en ISO 8601 (ej: '2025-11-02T00:00:00Z'). Usar junto con 'start'."
+                ),
+                last: z.number().optional().describe(
+                    "Minutos hacia atrás desde ahora. Alternativa a start/end para consultas relativas. " +
+                    "Ej: 60 = última hora, 1440 = último día, 10080 = última semana. Por defecto 60."
+                ),
+                timezone: z.string().optional().describe("Zona horaria para interpretar las fechas. Por defecto 'Europe/Madrid'."),
+                limit: z.number().optional().describe(
+                    "Número máximo de resultados a devolver. Por defecto 1000. " +
+                    "Subir si se necesitan más datos, bajar para consultas rápidas."
+                ),
+                include_metadata: z.boolean().optional().describe(
+                    "Si es true, incluye los metadatos del dispositivo (nombre, ubicación, etc.) junto con cada lectura. Por defecto false."
+                ),
+                export_format: z.enum(["json", "csv", "xml"]).optional().describe("Formato de exportación de los datos. Por defecto 'json'.")
             })
         },
         async (params = {}) => {
@@ -155,26 +228,62 @@ export function registerTools(server) {
         }
     );
 
+    // ─────────────────────────────────────────────────────────────────────────
+    //  6. QUERY AGGREGATION: Datos agregados por intervalos
+    // ─────────────────────────────────────────────────────────────────────────
     server.registerTool(
         "get-measurements-query-aggregation",
         {
-            description: "Consulta datos agregados de mediciones (avg, min, max, sum, count, last) agrupados por intervalos de tiempo. Permite filtrar por device_id, magnitude y tags.",
+            description:
+                "Consulta datos AGREGADOS de mediciones agrupados por intervalos de tiempo. " +
+                "Aplica funciones estadísticas (media, mínimo, máximo, suma, cuenta, último valor) " +
+                "sobre los datos agrupados en intervalos configurables (por hora, por día, etc.). " +
+                "Usar cuando el usuario necesita: consumo medio, evolución horaria/diaria, " +
+                "valores máximos/mínimos en un periodo, tendencias, comparativas entre periodos, " +
+                "resúmenes de consumo, informes energéticos. " +
+                "Esta herramienta es MÁS EFICIENTE que query-data para análisis y resúmenes. " +
+                "Para ver datos crudos individuales, usar get-measurements-query-data.",
             inputSchema: z.object({
-                collection: z.enum(["agua", "luz"]).describe("Colección de la que se quiere obtener la información. Por defecto 'agua'."),
-                device_id: z.string().optional().describe("ID del dispositivo a filtrar."),
-                magnitude: z.string().optional().describe("Magnitud a filtrar (temperatura, humedad, co2, etc.)."),
+                collection: collectionEnum,
+                device_id: z.string().optional().describe(
+                    "ID del dispositivo a filtrar. Sin este parámetro, agrega datos de todos los dispositivos."
+                ),
+                magnitude: z.string().optional().describe(
+                    "Magnitud a filtrar (ej: 'temperature', 'humidity', 'co2', 'generalelectricity'). " +
+                    "Usar get-measurements-magnitudes para ver las disponibles."
+                ),
                 tags: z.array(z.object({
                     field: z.string().describe("Campo del tag por el que filtrar."),
                     values: z.array(z.string()).describe("Valores del tag. Múltiples valores se evalúan con OR.")
-                })).optional().describe("Filtros por tags. Múltiples objetos tag se combinan con AND."),
-                start: z.string().optional().describe("Fecha de inicio en ISO 8601 (ej: 2025-11-01T00:00:00Z). Usar junto con 'end'."),
-                end: z.string().optional().describe("Fecha de fin en ISO 8601 (ej: 2025-11-02T00:00:00Z). Usar junto con 'start'."),
-                last: z.number().optional().describe("Minutos hacia atrás desde ahora. Se usa si no se proporcionan 'start' y 'end'. Por defecto 60."),
-                timezone: z.string().optional().describe("Zona horaria. Por defecto Europe/Madrid."),
-                operations: z.enum(["avg", "min", "max", "sum", "count", "last"]).optional().describe("Función estadística a aplicar. Por defecto avg."),
-                interval_minutes: z.number().optional().describe("Intervalo de agrupación en minutos. Por defecto 60."),
-                group_by: z.enum(["device_id", "magnitude"]).optional().describe("Campo por el que agrupar. Por defecto device_id."),
-                export_format: z.enum(["json", "csv", "xml"]).optional().describe("Formato de exportación. Por defecto json.")
+                })).optional().describe("Filtros adicionales por tags. Múltiples objetos tag se combinan con AND."),
+                start: z.string().optional().describe(
+                    "Fecha de inicio en ISO 8601 (ej: '2025-11-01T00:00:00Z'). Usar junto con 'end'. " +
+                    "Si no se proporcionan start/end, se usa 'last'."
+                ),
+                end: z.string().optional().describe(
+                    "Fecha de fin en ISO 8601 (ej: '2025-11-02T00:00:00Z'). Usar junto con 'start'."
+                ),
+                last: z.number().optional().describe(
+                    "Minutos hacia atrás desde ahora. " +
+                    "Ej: 60 = última hora, 1440 = último día, 10080 = última semana, 43200 = último mes. Por defecto 60."
+                ),
+                timezone: z.string().optional().describe("Zona horaria para interpretar las fechas. Por defecto 'Europe/Madrid'."),
+                operations: z.enum(["avg", "min", "max", "sum", "count", "last"]).optional().describe(
+                    "Función estadística a aplicar sobre cada intervalo: " +
+                    "'avg' (media), 'min' (mínimo), 'max' (máximo), 'sum' (suma total), " +
+                    "'count' (número de lecturas), 'last' (último valor). Por defecto 'avg'."
+                ),
+                interval_minutes: z.number().optional().describe(
+                    "Intervalo de agrupación en minutos. " +
+                    "Ej: 60 = agrupación horaria, 1440 = agrupación diaria, 10080 = agrupación semanal. " +
+                    "Por defecto 60 (horario)."
+                ),
+                group_by: z.enum(["device_id", "magnitude"]).optional().describe(
+                    "Campo por el que agrupar los resultados: " +
+                    "'device_id' (un resultado por dispositivo) o 'magnitude' (un resultado por tipo de medición). " +
+                    "Por defecto 'device_id'."
+                ),
+                export_format: z.enum(["json", "csv", "xml"]).optional().describe("Formato de exportación de los datos. Por defecto 'json'.")
             })
         },
         async (params = {}) => {
@@ -185,18 +294,28 @@ export function registerTools(server) {
         }
     );
 
+    // ─────────────────────────────────────────────────────────────────────────
+    //  7. SIGUA CODES: Mapeo dispositivo → código de edificio
+    // ─────────────────────────────────────────────────────────────────────────
     server.registerTool(
         "get-measurements-sigua-codes",
         {
-            description: "Obtiene el código SIGUA de edificio de cada dispositivo a partir de sus metadatos.",
+            description:
+                "Devuelve el mapeo de cada dispositivo con su código SIGUA de edificio y su alias. " +
+                "El código SIGUA es el identificador oficial de los edificios de la universidad (ej: '0025' = Aulario 1, '0030' = Aulario 2). " +
+                "Usar cuando el usuario pregunta por un EDIFICIO concreto (por nombre o código) y se necesita " +
+                "saber qué dispositivos pertenecen a ese edificio. " +
+                "También útil para: listar edificios monitorizados, buscar un edificio por nombre parcial, " +
+                "o preparar informes por edificio. " +
+                "Devuelve: device_id, alias (nombre descriptivo) y sigua_edificio (código del edificio).",
             inputSchema: z.object({
-                collection: z.enum(["agua", "luz"]).describe("Colección de la que se quiere obtener la información. Por defecto 'agua'.")
+                collection: collectionEnum
             })
         },
-        async ({ collection = "agua" } = {}) => {
+        async ({ collection } = {}) => {
             const result = await OpenApiMeasurements.fetchOpenApiQueryData({
                 collection,
-                last: 10080, // 7 días para garantizar datos de todos los dispositivos
+                last: 10080,
                 include_metadata: true,
                 limit: 1000
             });
@@ -208,7 +327,6 @@ export function registerTools(server) {
             const records = result?.data?.records ?? [];
             const metadataList = result?.data?.metadata ?? [];
 
-            // Crear mapa metadata_id -> metadata
             const metadataMap = new Map(metadataList.map(m => [m.metadata_id, m]));
 
             const seen = new Set();
