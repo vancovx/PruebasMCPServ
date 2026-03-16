@@ -2,8 +2,9 @@ import { z } from "zod";
 import { OpenApiMeasurements } from "../services/measurements.service.js";
 
 
-
-// Schema reutilizable de colecciones para todas las herramientas.
+// ─────────────────────────────────────────────────────────────────────────────
+// Schema reutilizable: colecciones IoT
+// ─────────────────────────────────────────────────────────────────────────────
 const collectionEnum = z.enum([
     "bim",
     "water",
@@ -63,103 +64,76 @@ const collectionEnum = z.enum([
         `NOTA: si pregunten por meteorología específica del campus, usar 'weather' en su lugar.`
 );
 
-// Tools
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  REGISTRO DE TOOLS — 5 herramientas optimizadas
+// ═════════════════════════════════════════════════════════════════════════════
 export function registerTools(server) {
 
     // ─────────────────────────────────────────────────────────────────────────
-    //  1. INFO: Información general de la fuente de datos
+    //  1. DISCOVER-COLLECTION
+    //     Fusión de: info + devices + magnitudes
+    //     Una sola llamada devuelve TODO lo necesario para entender una colección.
     // ─────────────────────────────────────────────────────────────────────────
     server.registerTool(
-        "get-measurements-info",
+        "discover-collection",
         {
             description:
-                "Devuelve información general sobre una colección de datos IoT: " +
-                "nombre, descripción, métricas disponibles y configuración. " +
-                "Usar como PRIMER PASO cuando el usuario pregunta '¿qué datos hay disponibles?' " +
-                "o cuando se necesita conocer la estructura de una colección antes de consultar datos.",
-            inputSchema: z.object({
-                collection: collectionEnum
-            })
-        },
-        async ({ collection }) => {
-            const result = await OpenApiMeasurements.fetchOpenApiInfo(collection);
-            return {
-                content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
-            };
-        }
-    );
-
-    // ─────────────────────────────────────────────────────────────────────────
-    //  2. DEVICES: Lista de dispositivos disponibles
-    // ─────────────────────────────────────────────────────────────────────────
-    server.registerTool(
-        "get-measurements-devices",
-        {
-            description:
-                "Devuelve la lista completa de dispositivos (sensores/contadores) que han emitido mediciones en una colección. " +
-                "Cada dispositivo incluye su ID único y alias descriptivo. " +
-                "Usar cuando el usuario pregunta: '¿qué sensores hay?', '¿qué contadores existen?', " +
-                "'lista de dispositivos', 'muéstrame los equipos disponibles'. " +
+                "Devuelve toda la información de una colección IoT en una sola llamada: " +
+                "descripción general, lista de dispositivos (con IDs y alias) y magnitudes disponibles. " +
+                "Usar como PRIMER PASO para cualquier consulta: " +
+                "'¿qué datos hay?', '¿qué sensores existen?', '¿qué mide esta colección?', " +
+                "'¿qué dispositivos hay en energía?', '¿qué magnitudes tiene el sensor X?'. " +
                 "También útil para obtener IDs de dispositivos antes de consultar datos con query-data o query-aggregation.",
-            inputSchema: z.object({
-                collection: collectionEnum
-            })
-        },
-        async ({ collection }) => {
-            const result = await OpenApiMeasurements.fetchOpenApiDevices(collection);
-            return {
-                content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
-            };
-        }
-    );
-
-    // ─────────────────────────────────────────────────────────────────────────
-    //  3. MAGNITUDES: Qué magnitudes mide cada dispositivo
-    // ─────────────────────────────────────────────────────────────────────────
-    server.registerTool(
-        "get-measurements-magnitudes",
-        {
-            description:
-                "Devuelve las magnitudes (tipos de medición) disponibles en una colección: " +
-                "temperatura, humedad, CO2, kWh, m³, etc. " +
-                "Se puede filtrar por un dispositivo concreto para ver solo sus magnitudes. " +
-                "Usar cuando el usuario pregunta: '¿qué mide este sensor?', '¿qué magnitudes hay?', " +
-                "'¿qué variables se registran?'. " +
-                "Útil antes de hacer una consulta query-data o query-aggregation para saber qué valor poner en el parámetro 'magnitude'.",
             inputSchema: z.object({
                 collection: collectionEnum,
                 device_id: z.string().optional().describe(
-                    "ID del dispositivo para filtrar sus magnitudes. " +
-                    "Si no se proporciona, devuelve todas las magnitudes de toda la colección."
+                    "ID de un dispositivo concreto para filtrar sus magnitudes. " +
+                    "Si se omite, devuelve las magnitudes de toda la colección."
                 )
             })
         },
-        async ({ collection, device_id } = {}) => {
-            const result = await OpenApiMeasurements.fetchOpenApiMagnitudes(collection, device_id);
+        async ({ collection, device_id }) => {
+            // Lanzar las 3 peticiones en paralelo para mayor velocidad
+            const [info, devices, magnitudes] = await Promise.all([
+                OpenApiMeasurements.fetchOpenApiInfo(collection),
+                OpenApiMeasurements.fetchOpenApiDevices(collection),
+                OpenApiMeasurements.fetchOpenApiMagnitudes(collection, device_id)
+            ]);
+
+            const result = {
+                collection_info: info,
+                devices: devices,
+                magnitudes: magnitudes,
+            };
+
             return {
                 content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
             };
         }
     );
 
+
     // ─────────────────────────────────────────────────────────────────────────
-    //  4. METADATA: Metadatos de un dispositivo concreto
+    //  2. GET-DEVICE-DETAILS
+    //     Antes: metadata-device (renombrada para mayor claridad)
+    //     Devuelve metadatos completos de un dispositivo concreto.
     // ─────────────────────────────────────────────────────────────────────────
     server.registerTool(
-        "get-measurements-metadata-device",
+        "get-device-details",
         {
             description:
-                "Devuelve los metadatos completos de un dispositivo específico: " +
+                "Devuelve los detalles completos de un dispositivo específico: " +
                 "nombre, alias, geolocalización (lat/lon), ubicación dentro del edificio, " +
                 "organización, tipo de métrica, código SIGUA del edificio y campos personalizados. " +
                 "Usar cuando el usuario pregunta: '¿dónde está este sensor?', '¿qué es el dispositivo X?', " +
-                "'información del contador', 'ubicación del equipo'. " +
-                "Requiere el device_id, que se puede obtener previamente con get-measurements-devices o get-measurements-sigua-codes.",
+                "'información del contador', 'ubicación del equipo', 'detalles del sensor'. " +
+                "Requiere el device_id, que se obtiene de discover-collection o search-buildings.",
             inputSchema: z.object({
                 collection: collectionEnum,
                 device_id: z.string().describe(
-                    "ID del dispositivo del que se quieren obtener los metadatos. " +
-                    "Se obtiene de get-measurements-devices o get-measurements-sigua-codes."
+                    "ID del dispositivo del que se quieren obtener los detalles. " +
+                    "Se obtiene de discover-collection o search-buildings."
                 )
             })
         },
@@ -171,11 +145,13 @@ export function registerTools(server) {
         }
     );
 
+
     // ─────────────────────────────────────────────────────────────────────────
-    //  5. QUERY DATA: Series temporales de mediciones (datos crudos)
+    //  3. QUERY-DATA — Sin cambios
+    //     Series temporales de mediciones (datos crudos)
     // ─────────────────────────────────────────────────────────────────────────
     server.registerTool(
-        "get-measurements-query-data",
+        "query-data",
         {
             description:
                 "Consulta datos CRUDOS de mediciones en series temporales. " +
@@ -183,7 +159,7 @@ export function registerTools(server) {
                 "Usar cuando el usuario necesita: valores exactos, datos sin procesar, " +
                 "exportar lecturas, ver cada medición individual, detectar valores puntuales. " +
                 "Para obtener estadísticas (media, máximo, mínimo) o evolución por horas/días, " +
-                "usar get-measurements-query-aggregation en su lugar, que es más eficiente. " +
+                "usar query-aggregation en su lugar, que es más eficiente. " +
                 "El rango temporal se define con start/end (fechas absolutas) o last (minutos hacia atrás).",
             inputSchema: z.object({
                 collection: collectionEnum,
@@ -192,7 +168,7 @@ export function registerTools(server) {
                 ),
                 magnitude: z.string().optional().describe(
                     "Magnitud a filtrar (ej: 'temperature', 'humidity', 'co2', 'generalelectricity', 'electricityfacility'). " +
-                    "Usar get-measurements-magnitudes para ver las magnitudes disponibles en la colección."
+                    "Usar discover-collection para ver las magnitudes disponibles en la colección."
                 ),
                 tags: z.array(z.object({
                     field: z.string().describe("Campo del tag por el que filtrar (ej: 'origin', 'location', 'building')."),
@@ -228,11 +204,13 @@ export function registerTools(server) {
         }
     );
 
+
     // ─────────────────────────────────────────────────────────────────────────
-    //  6. QUERY AGGREGATION: Datos agregados por intervalos
+    //  4. QUERY-AGGREGATION — Sin cambios
+    //     Datos agregados por intervalos
     // ─────────────────────────────────────────────────────────────────────────
     server.registerTool(
-        "get-measurements-query-aggregation",
+        "query-aggregation",
         {
             description:
                 "Consulta datos AGREGADOS de mediciones agrupados por intervalos de tiempo. " +
@@ -242,7 +220,7 @@ export function registerTools(server) {
                 "valores máximos/mínimos en un periodo, tendencias, comparativas entre periodos, " +
                 "resúmenes de consumo, informes energéticos. " +
                 "Esta herramienta es MÁS EFICIENTE que query-data para análisis y resúmenes. " +
-                "Para ver datos crudos individuales, usar get-measurements-query-data.",
+                "Para ver datos crudos individuales, usar query-data.",
             inputSchema: z.object({
                 collection: collectionEnum,
                 device_id: z.string().optional().describe(
@@ -250,7 +228,7 @@ export function registerTools(server) {
                 ),
                 magnitude: z.string().optional().describe(
                     "Magnitud a filtrar (ej: 'temperature', 'humidity', 'co2', 'generalelectricity'). " +
-                    "Usar get-measurements-magnitudes para ver las disponibles."
+                    "Usar discover-collection para ver las disponibles."
                 ),
                 tags: z.array(z.object({
                     field: z.string().describe("Campo del tag por el que filtrar."),
@@ -294,25 +272,37 @@ export function registerTools(server) {
         }
     );
 
+
     // ─────────────────────────────────────────────────────────────────────────
-    //  7. SIGUA CODES: Mapeo dispositivo → código de edificio
+    //  5. SEARCH-BUILDINGS
+    //     Fusión de: sigua-codes + list-buildings + search-buildings
+    //     Busca edificios por nombre o código SIGUA, o lista todos si no hay query.
+    //     Reemplaza completamente a get-measurements-sigua-codes.
     // ─────────────────────────────────────────────────────────────────────────
     server.registerTool(
-        "get-measurements-sigua-codes",
+        "search-buildings",
         {
             description:
-                "Devuelve el mapeo de cada dispositivo con su código SIGUA de edificio y su alias. " +
-                "El código SIGUA es el identificador oficial de los edificios de la universidad (ej: '0025' = Aulario 1, '0030' = Aulario 2). " +
-                "Usar cuando el usuario pregunta por un EDIFICIO concreto (por nombre o código) y se necesita " +
-                "saber qué dispositivos pertenecen a ese edificio. " +
-                "También útil para: listar edificios monitorizados, buscar un edificio por nombre parcial, " +
-                "o preparar informes por edificio. " +
-                "Devuelve: device_id, alias (nombre descriptivo) y sigua_edificio (código del edificio).",
+                "Busca edificios del campus y devuelve sus dispositivos asociados. " +
+                "Si se proporciona un término de búsqueda (query), filtra edificios por nombre parcial " +
+                "(ej: 'Aulario', 'Politécnica', 'Biblioteca') o por código SIGUA (ej: '0025', '0038'). " +
+                "Si NO se proporciona query, devuelve la lista completa de edificios monitorizados. " +
+                "Usar cuando el usuario pregunta: '¿qué edificios hay?', 'sensores del Aulario 1', " +
+                "'dispositivos del edificio 0025', 'buscar edificio Politécnica'. " +
+                "Devuelve: device_id, alias (nombre descriptivo) y sigua_edificio (código del edificio). " +
+                "Los device_id obtenidos se pueden usar en query-data, query-aggregation y get-device-details.",
             inputSchema: z.object({
-                collection: collectionEnum
+                collection: collectionEnum,
+                query: z.string().optional().describe(
+                    "Término de búsqueda: nombre parcial del edificio (ej: 'Aulario', 'Politécnica') " +
+                    "o código SIGUA (ej: '0025', '38'). " +
+                    "La búsqueda NO distingue mayúsculas/minúsculas. " +
+                    "Si se omite, devuelve todos los edificios de la colección."
+                )
             })
         },
-        async ({ collection } = {}) => {
+        async ({ collection, query }) => {
+            // Obtener datos con metadatos para extraer info de edificios
             const result = await OpenApiMeasurements.fetchOpenApiQueryData({
                 collection,
                 last: 10080,
@@ -326,11 +316,11 @@ export function registerTools(server) {
 
             const records = result?.data?.records ?? [];
             const metadataList = result?.data?.metadata ?? [];
-
             const metadataMap = new Map(metadataList.map(m => [m.metadata_id, m]));
 
+            // Extraer dispositivos únicos con su info de edificio
             const seen = new Set();
-            const siguas = [];
+            const allDevices = [];
 
             for (const record of records) {
                 if (seen.has(record.device_id)) continue;
@@ -339,15 +329,57 @@ export function registerTools(server) {
                 const meta = metadataMap.get(record.metadata_id) ?? {};
                 const customFields = meta?.custom_fields ?? {};
 
-                siguas.push({
+                allDevices.push({
                     device_id: record.device_id,
                     alias: meta?.alias ?? null,
                     sigua_edificio: customFields?.sigua_edificio ?? null,
                 });
             }
 
+            // Si no hay query, devolver todo
+            if (!query || query.trim() === "") {
+                return {
+                    content: [{
+                        type: "text",
+                        text: JSON.stringify({
+                            total: allDevices.length,
+                            query: null,
+                            data: allDevices
+                        }, null, 2)
+                    }]
+                };
+            }
+
+            // Filtrar por query (búsqueda parcial, case-insensitive)
+            const q = query.trim().toLowerCase();
+
+            // Normalizar query numérica: si es un número, pad con ceros a 4 dígitos
+            const numericQuery = /^\d+$/.test(q) ? q.padStart(4, "0") : null;
+
+            const filtered = allDevices.filter(device => {
+                const alias = (device.alias ?? "").toLowerCase();
+                const sigua = (device.sigua_edificio ?? "").toLowerCase();
+
+                // Buscar por código SIGUA (exacto o parcial con padding)
+                if (numericQuery) {
+                    if (sigua === numericQuery || sigua === q) return true;
+                }
+
+                // Buscar por texto en alias o sigua
+                if (alias.includes(q) || sigua.includes(q)) return true;
+
+                return false;
+            });
+
             return {
-                content: [{ type: "text", text: JSON.stringify({ data: siguas }, null, 2) }]
+                content: [{
+                    type: "text",
+                    text: JSON.stringify({
+                        total: filtered.length,
+                        query: query,
+                        data: filtered
+                    }, null, 2)
+                }]
             };
         }
     );

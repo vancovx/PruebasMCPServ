@@ -28,8 +28,8 @@ export function registerPrompts(server) {
                                 de las últimas ${horas} horas.
 
                                 Pasos:
-                                1. Usa "get-measurements-metadata-device" para saber qué es el dispositivo.
-                                2. Usa "get-measurements-query-aggregation" con last=${horas * 60}, operations="avg".
+                                1. Usa "get-device-details" para saber qué es el dispositivo.
+                                2. Usa "query-aggregation" con last=${horas * 60}, operations="avg".
                                 3. Responde con: nombre del dispositivo, consumo medio, y una línea de conclusión.`
                         }
                     }
@@ -60,7 +60,6 @@ export function registerPrompts(server) {
             // Calcular start y end del mes
             const [year, month] = mes.split("-");
             const start = `${year}-${month}-01T00:00:00.000Z`;
-            // Último día del mes: crear fecha del día 1 del mes siguiente y restar 1 día
             const lastDay = new Date(Number(year), Number(month), 0).getDate();
             const end = `${year}-${month}-${String(lastDay).padStart(2, "0")}T23:59:59.000Z`;
 
@@ -75,20 +74,16 @@ export function registerPrompts(server) {
                                 Sigue estos pasos en orden estricto:
 
                                 ─── PASO 1: Identificar dispositivos del edificio ───
-                                Usa "get-measurements-sigua-codes" con collection="luz" para obtener la lista de dispositivos con sus códigos SIGUA y alias.
-                                El usuario ha indicado el edificio como: "${edificio}".
-                                Busca coincidencias de la siguiente forma:
-                                - Si "${edificio}" parece un código numérico corto (ej: "0025", "38"), filtra los dispositivos cuyo campo sigua_edificio coincida (con o sin ceros a la izquierda).
-                                - Si "${edificio}" parece un nombre o texto (ej: "Aulario 1", "Politécnica"), filtra los dispositivos cuyo campo alias contenga ese texto (búsqueda parcial, sin distinguir mayúsculas/minúsculas).
-                                - Si no hay coincidencias exactas, busca coincidencias parciales en ambos campos (sigua_edificio y alias) y muestra las opciones más cercanas al usuario.
+                                Usa "search-buildings" con collection="energy" y query="${edificio}" para obtener los dispositivos del edificio.
+                                Si no encuentra resultados, prueba sin query para listar todos los edificios disponibles y sugiere las opciones más cercanas al usuario.
                                 Si no encuentras ningún dispositivo, informa al usuario con las opciones disponibles más parecidas y detente.
 
                                 ─── PASO 2: Obtener metadatos ───
-                                Para cada dispositivo encontrado, usa "get-measurements-metadata-device" con collection="luz" para conocer su nombre, ubicación y tipo.
+                                Para cada dispositivo encontrado, usa "get-device-details" con collection="energy" para conocer su nombre, ubicación y tipo.
 
                                 ─── PASO 3: Obtener datos agregados diarios ───
-                                Para cada dispositivo, usa "get-measurements-query-aggregation" con:
-                                - collection = "luz"
+                                Para cada dispositivo, usa "query-aggregation" con:
+                                - collection = "energy"
                                 - device_id = (el ID del dispositivo)
                                 - start = "${start}"
                                 - end = "${end}"
@@ -97,7 +92,7 @@ export function registerPrompts(server) {
                                 Repite con operations = "max" y operations = "min".
 
                                 ─── PASO 4: Obtener datos agregados horarios (para detectar anomalías) ───
-                                Usa "get-measurements-query-aggregation" con:
+                                Usa "query-aggregation" con:
                                 - interval_minutes = 60 (agrupación horaria)
                                 - operations = "avg"
                                 - Mismo rango de fechas y dispositivos.
@@ -105,7 +100,7 @@ export function registerPrompts(server) {
                                 ─── PASO 5: Generar el informe con esta estructura ───
 
                                 ## 1. Datos del edificio
-                                - Código SIGUA, nombre del edificio (si está en los metadatos), número de dispositivos/contadores encontrados.
+                                - Código SIGUA, nombre del edificio, número de dispositivos/contadores encontrados.
                                 - Lista de dispositivos con su alias y ubicación.
 
                                 ## 2. Resumen de consumo mensual
@@ -115,19 +110,19 @@ export function registerPrompts(server) {
                                 - Tabla resumen por dispositivo: alias, consumo medio diario, máximo, mínimo.
 
                                 ## 3. Evolución diaria
-                                - Describe la tendencia del consumo a lo largo del mes: si fue estable, creciente, decreciente o irregular.
+                                - Describe la tendencia del consumo a lo largo del mes.
                                 - Identifica patrones claros (ej: bajada en fines de semana, picos al inicio de semana).
 
                                 ## 4. Análisis horario y patrones
-                                - Describe el patrón horario típico del edificio (horas de mayor y menor consumo).
+                                - Describe el patrón horario típico del edificio.
                                 - Compara días laborables vs fines de semana si los datos lo permiten.
 
                                 ## 5. Detección de anomalías
-                                Aplica estos criterios para detectar anomalías:
+                                Aplica estos criterios:
                                 a) **Picos extremos**: cualquier valor horario que supere en más de 2 desviaciones estándar la media horaria del mes.
                                 b) **Consumo nocturno inusual**: consumo entre las 00:00-06:00 que supere el 30% del consumo medio diurno.
                                 c) **Días atípicos**: días cuyo consumo total se desvíe más de 1.5 desviaciones estándar de la media diaria.
-                                d) **Caídas a cero**: periodos donde el consumo cae a 0 durante horas laborables (posible fallo de sensor o corte).
+                                d) **Caídas a cero**: periodos donde el consumo cae a 0 durante horas laborables.
 
                                 Para cada anomalía encontrada indica: fecha/hora, dispositivo afectado, valor registrado, valor esperado y tipo de anomalía.
                                 Si no se detectan anomalías, indícalo explícitamente.
