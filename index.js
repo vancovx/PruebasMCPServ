@@ -1,7 +1,9 @@
 import express from "express";
 import dotenv from "dotenv";
 import { registerTools } from "./src/tools/registerTool.js";
+import { registerCampusTools } from "./src/tools/campusTool.js";
 import { registerPrompts } from "./src/prompts/registerPrompts.js";
+import { CampusService } from "./src/services/campus.service.js";
 
 // Librerias MCP 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"; 
@@ -30,6 +32,7 @@ function createMcpServer() {
 
     // Registrar herramientas y prompts
     registerTools(server);
+    registerCampusTools(server);
     registerPrompts(server);
 
     return server;
@@ -38,6 +41,11 @@ function createMcpServer() {
 
 //Crear servidor MCP (Con STDIO o Stremeable)
 async function startMcpServer() {
+
+    await CampusService.initialize(
+        join(process.cwd(), "src", "data", "buildings")
+    );
+
     if (process.env.NODE_ENV === "production") {
         // Streamable para producción y probar con Postman
         const app = express();
