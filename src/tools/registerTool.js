@@ -2,9 +2,7 @@ import { z } from "zod";
 import { OpenApiMeasurements } from "../services/measurements.service.js";
 
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Schema reutilizable: colecciones IoT
-// ─────────────────────────────────────────────────────────────────────────────
 const collectionEnum = z.enum([
     "bim",
     "water",
@@ -65,15 +63,11 @@ const collectionEnum = z.enum([
 );
 
 
-// ═════════════════════════════════════════════════════════════════════════════
-//  REGISTRO DE TOOLS — 5 herramientas optimizadas
-// ═════════════════════════════════════════════════════════════════════════════
 export function registerTools(server) {
 
     // ─────────────────────────────────────────────────────────────────────────
     //  1. DISCOVER-COLLECTION
     //     Fusión de: info + devices + magnitudes
-    //     Una sola llamada devuelve TODO lo necesario para entender una colección.
     // ─────────────────────────────────────────────────────────────────────────
     server.registerTool(
         "discover-collection",
@@ -116,8 +110,6 @@ export function registerTools(server) {
 
     // ─────────────────────────────────────────────────────────────────────────
     //  2. GET-DEVICE-DETAILS
-    //     Antes: metadata-device (renombrada para mayor claridad)
-    //     Devuelve metadatos completos de un dispositivo concreto.
     // ─────────────────────────────────────────────────────────────────────────
     server.registerTool(
         "get-device-details",
@@ -147,8 +139,7 @@ export function registerTools(server) {
 
 
     // ─────────────────────────────────────────────────────────────────────────
-    //  3. QUERY-DATA — Sin cambios
-    //     Series temporales de mediciones (datos crudos)
+    //  3. QUERY-DATA
     // ─────────────────────────────────────────────────────────────────────────
     server.registerTool(
         "query-data",
@@ -206,8 +197,7 @@ export function registerTools(server) {
 
 
     // ─────────────────────────────────────────────────────────────────────────
-    //  4. QUERY-AGGREGATION — Sin cambios
-    //     Datos agregados por intervalos
+    //  4. QUERY-AGGREGATION 
     // ─────────────────────────────────────────────────────────────────────────
     server.registerTool(
         "query-aggregation",
@@ -268,118 +258,6 @@ export function registerTools(server) {
             const result = await OpenApiMeasurements.fetchOpenApiQueryAggregation(params);
             return {
                 content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
-            };
-        }
-    );
-
-
-    // ─────────────────────────────────────────────────────────────────────────
-    //  5. SEARCH-BUILDINGS
-    //     Fusión de: sigua-codes + list-buildings + search-buildings
-    //     Busca edificios por nombre o código SIGUA, o lista todos si no hay query.
-    //     Reemplaza completamente a get-measurements-sigua-codes.
-    // ─────────────────────────────────────────────────────────────────────────
-    server.registerTool(
-        "search-buildings",
-        {
-            description:
-                "Busca edificios del campus y devuelve sus dispositivos asociados. " +
-                "Si se proporciona un término de búsqueda (query), filtra edificios por nombre parcial " +
-                "(ej: 'Aulario', 'Politécnica', 'Biblioteca') o por código SIGUA (ej: '0025', '0038'). " +
-                "Si NO se proporciona query, devuelve la lista completa de edificios monitorizados. " +
-                "Usar cuando el usuario pregunta: '¿qué edificios hay?', 'sensores del Aulario 1', " +
-                "'dispositivos del edificio 0025', 'buscar edificio Politécnica'. " +
-                "Devuelve: device_id, alias (nombre descriptivo) y sigua_edificio (código del edificio). " +
-                "Los device_id obtenidos se pueden usar en query-data, query-aggregation y get-device-details.",
-            inputSchema: z.object({
-                collection: collectionEnum,
-                query: z.string().optional().describe(
-                    "Término de búsqueda: nombre parcial del edificio (ej: 'Aulario', 'Politécnica') " +
-                    "o código SIGUA (ej: '0025', '38'). " +
-                    "La búsqueda NO distingue mayúsculas/minúsculas. " +
-                    "Si se omite, devuelve todos los edificios de la colección."
-                )
-            })
-        },
-        async ({ collection, query }) => {
-            // Obtener datos con metadatos para extraer info de edificios
-            const result = await OpenApiMeasurements.fetchOpenApiQueryData({
-                collection,
-                last: 10080,
-                include_metadata: true,
-                limit: 1000
-            });
-
-            if (result.error) {
-                return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
-            }
-
-            const records = result?.data?.records ?? [];
-            const metadataList = result?.data?.metadata ?? [];
-            const metadataMap = new Map(metadataList.map(m => [m.metadata_id, m]));
-
-            // Extraer dispositivos únicos con su info de edificio
-            const seen = new Set();
-            const allDevices = [];
-
-            for (const record of records) {
-                if (seen.has(record.device_id)) continue;
-                seen.add(record.device_id);
-
-                const meta = metadataMap.get(record.metadata_id) ?? {};
-                const customFields = meta?.custom_fields ?? {};
-
-                allDevices.push({
-                    device_id: record.device_id,
-                    alias: meta?.alias ?? null,
-                    sigua_edificio: customFields?.sigua_edificio ?? null,
-                });
-            }
-
-            // Si no hay query, devolver todo
-            if (!query || query.trim() === "") {
-                return {
-                    content: [{
-                        type: "text",
-                        text: JSON.stringify({
-                            total: allDevices.length,
-                            query: null,
-                            data: allDevices
-                        }, null, 2)
-                    }]
-                };
-            }
-
-            // Filtrar por query (búsqueda parcial, case-insensitive)
-            const q = query.trim().toLowerCase();
-
-            // Normalizar query numérica: si es un número, pad con ceros a 4 dígitos
-            const numericQuery = /^\d+$/.test(q) ? q.padStart(4, "0") : null;
-
-            const filtered = allDevices.filter(device => {
-                const alias = (device.alias ?? "").toLowerCase();
-                const sigua = (device.sigua_edificio ?? "").toLowerCase();
-
-                // Buscar por código SIGUA (exacto o parcial con padding)
-                if (numericQuery) {
-                    if (sigua === numericQuery || sigua === q) return true;
-                }
-
-                // Buscar por texto en alias o sigua
-                if (alias.includes(q) || sigua.includes(q)) return true;
-
-                return false;
-            });
-
-            return {
-                content: [{
-                    type: "text",
-                    text: JSON.stringify({
-                        total: filtered.length,
-                        query: query,
-                        data: filtered
-                    }, null, 2)
-                }]
             };
         }
     );

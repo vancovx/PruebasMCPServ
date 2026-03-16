@@ -76,36 +76,4 @@ export function registerCampusTools(server) {
     );
 
 
-    // Listar todos los edificios del campus
-    server.registerTool(
-        "list-campus-buildings",
-        {
-            description:
-                "Devuelve la lista completa de todos los edificios del campus de la Universidad de Alicante. " +
-                "Cada edificio incluye: código SIGUA, nombre oficial, plantas y coordenadas. " +
-                "Usar cuando el usuario pregunta: '¿qué edificios hay?', 'lista de edificios', " +
-                "'muéstrame todos los edificios', 'edificios del campus'. " +
-                "No requiere parámetros.",
-            inputSchema: z.object({})
-        },
-        async () => {
-            const buildings = CampusService.getAllBuildings();
-            return {
-                content: [{
-                    type: "text",
-                    text: JSON.stringify({
-                        total: buildings.length,
-                        edificios: buildings.map(b => ({
-                            codigo_sigua: b.id,
-                            nombre: b.nombre,
-                            plantas: b.plantas,
-                            num_plantas: b.num_plantas,
-                            centro: b.center
-                        }))
-                    }, null, 2)
-                }]
-            };
-        }
-    );
-
 }
