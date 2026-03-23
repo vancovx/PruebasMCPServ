@@ -62,16 +62,16 @@ const collectionEnum = z.enum([
         `NOTA: si pregunten por meteorología específica del campus, usar 'weather' en su lugar.`
 );
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Definición completa de las 4 tools
+//  Cada entrada: { name, definition, handler }
+// ─────────────────────────────────────────────────────────────────────────────
+const ALL_TOOLS = [
 
-export function registerTools(server) {
-
-    // ─────────────────────────────────────────────────────────────────────────
-    //  1. DISCOVER-COLLECTION
-    //     Fusión de: info + devices + magnitudes
-    // ─────────────────────────────────────────────────────────────────────────
-    server.registerTool(
-        "discover-collection",
-        {
+    // ─── 1. DISCOVER-COLLECTION ──────────────────────────────────────────────
+    {
+        name: "discover-collection",
+        definition: {
             description:
                 "Devuelve toda la información de una colección IoT en una sola llamada: " +
                 "descripción general, lista de dispositivos (con IDs y alias) y magnitudes disponibles. " +
@@ -87,63 +87,49 @@ export function registerTools(server) {
                 )
             })
         },
-        async ({ collection, device_id }) => {
-            // Lanzar las 3 peticiones en paralelo para mayor velocidad
+        handler: async ({ collection, device_id }) => {
             const [info, devices, magnitudes] = await Promise.all([
                 OpenApiMeasurements.fetchOpenApiInfo(collection),
                 OpenApiMeasurements.fetchOpenApiDevices(collection),
                 OpenApiMeasurements.fetchOpenApiMagnitudes(collection, device_id)
             ]);
-
-            const result = {
-                collection_info: info,
-                devices: devices,
-                magnitudes: magnitudes,
-            };
-
             return {
-                content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
+                content: [{ type: "text", text: JSON.stringify({ collection_info: info, devices, magnitudes }, null, 2) }]
             };
         }
-    );
+    },
 
-
-    // ─────────────────────────────────────────────────────────────────────────
-    //  2. GET-DEVICE-DETAILS
-    // ─────────────────────────────────────────────────────────────────────────
-    server.registerTool(
-        "get-device-details",
-        {
+    // ─── 2. GET-DEVICE-DETAILS ───────────────────────────────────────────────
+    {
+        name: "get-device-details",
+        definition: {
             description:
                 "Devuelve los detalles completos de un dispositivo específico: " +
                 "nombre, alias, geolocalización (lat/lon), ubicación dentro del edificio, " +
                 "organización, tipo de métrica, código SIGUA del edificio y campos personalizados. " +
                 "Usar cuando el usuario pregunta: '¿dónde está este sensor?', '¿qué es el dispositivo X?', " +
                 "'información del contador', 'ubicación del equipo', 'detalles del sensor'. " +
-                "Requiere el device_id, que se obtiene de discover-collection o search-buildings.",
+                "Requiere el device_id, que se obtiene de discover-collection.",
             inputSchema: z.object({
                 collection: collectionEnum,
                 device_id: z.string().describe(
                     "ID del dispositivo del que se quieren obtener los detalles. " +
-                    "Se obtiene de discover-collection o search-buildings."
+                    "Se obtiene de discover-collection."
                 )
             })
         },
-        async ({ collection, device_id }) => {
+        handler: async ({ collection, device_id }) => {
             const result = await OpenApiMeasurements.fetchOpenApiMetadaDevice(collection, device_id);
             return {
                 content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
             };
         }
-    );
+    },
 
-
-    // ─────────────────────────────────────────────────────────────────────────
-    //  3. QUERY-DATA
-    // ─────────────────────────────────────────────────────────────────────────
-    server.registerTool(
-        "query-data",
-        {
+    // ─── 3. QUERY-DATA ───────────────────────────────────────────────────────
+    {
+        name: "query-data",
+        definition: {
             description:
                 "Consulta datos CRUDOS de mediciones en series temporales. " +
                 "Devuelve cada lectura individual con su timestamp, valor y unidad. " +
@@ -155,53 +141,39 @@ export function registerTools(server) {
             inputSchema: z.object({
                 collection: collectionEnum,
                 device_id: z.string().optional().describe(
-                    "ID del dispositivo a filtrar. Sin este parámetro, devuelve datos de todos los dispositivos de la colección."
+                    "ID del dispositivo a filtrar. Sin este parámetro, devuelve datos de todos los dispositivos."
                 ),
                 magnitude: z.string().optional().describe(
-                    "Magnitud a filtrar (ej: 'temperature', 'humidity', 'co2', 'generalelectricity', 'electricityfacility'). " +
-                    "Usar discover-collection para ver las magnitudes disponibles en la colección."
+                    "Magnitud a filtrar (ej: 'temperature', 'humidity', 'co2', 'generalelectricity'). " +
+                    "Usar discover-collection para ver las magnitudes disponibles."
                 ),
                 tags: z.array(z.object({
-                    field: z.string().describe("Campo del tag por el que filtrar (ej: 'origin', 'location', 'building')."),
+                    field: z.string().describe("Campo del tag por el que filtrar."),
                     values: z.array(z.string()).describe("Valores del tag. Múltiples valores se evalúan con OR.")
                 })).optional().describe("Filtros adicionales por tags. Múltiples objetos tag se combinan con AND."),
-                start: z.string().optional().describe(
-                    "Fecha de inicio en ISO 8601 (ej: '2025-11-01T00:00:00Z'). Usar junto con 'end'. " +
-                    "Si no se proporcionan start/end, se usa el parámetro 'last'."
-                ),
-                end: z.string().optional().describe(
-                    "Fecha de fin en ISO 8601 (ej: '2025-11-02T00:00:00Z'). Usar junto con 'start'."
-                ),
+                start: z.string().optional().describe("Fecha de inicio en ISO 8601. Usar junto con 'end'."),
+                end: z.string().optional().describe("Fecha de fin en ISO 8601. Usar junto con 'start'."),
                 last: z.number().optional().describe(
-                    "Minutos hacia atrás desde ahora. Alternativa a start/end para consultas relativas. " +
-                    "Ej: 60 = última hora, 1440 = último día, 10080 = última semana. Por defecto 60."
+                    "Minutos hacia atrás desde ahora. Ej: 60 = última hora, 1440 = último día. Por defecto 60."
                 ),
-                timezone: z.string().optional().describe("Zona horaria para interpretar las fechas. Por defecto 'Europe/Madrid'."),
-                limit: z.number().optional().describe(
-                    "Número máximo de resultados a devolver. Por defecto 1000. " +
-                    "Subir si se necesitan más datos, bajar para consultas rápidas."
-                ),
-                include_metadata: z.boolean().optional().describe(
-                    "Si es true, incluye los metadatos del dispositivo (nombre, ubicación, etc.) junto con cada lectura. Por defecto false."
-                ),
-                export_format: z.enum(["json", "csv", "xml"]).optional().describe("Formato de exportación de los datos. Por defecto 'json'.")
+                timezone: z.string().optional().describe("Zona horaria. Por defecto 'Europe/Madrid'."),
+                limit: z.number().optional().describe("Número máximo de resultados. Por defecto 1000."),
+                include_metadata: z.boolean().optional().describe("Si true, incluye metadatos del dispositivo. Por defecto false."),
+                export_format: z.enum(["json", "csv", "xml"]).optional().describe("Formato de exportación. Por defecto 'json'.")
             })
         },
-        async (params = {}) => {
+        handler: async (params = {}) => {
             const result = await OpenApiMeasurements.fetchOpenApiQueryData(params);
             return {
                 content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
             };
         }
-    );
+    },
 
-
-    // ─────────────────────────────────────────────────────────────────────────
-    //  4. QUERY-AGGREGATION 
-    // ─────────────────────────────────────────────────────────────────────────
-    server.registerTool(
-        "query-aggregation",
-        {
+    // ─── 4. QUERY-AGGREGATION ────────────────────────────────────────────────
+    {
+        name: "query-aggregation",
+        definition: {
             description:
                 "Consulta datos AGREGADOS de mediciones agrupados por intervalos de tiempo. " +
                 "Aplica funciones estadísticas (media, mínimo, máximo, suma, cuenta, último valor) " +
@@ -209,8 +181,7 @@ export function registerTools(server) {
                 "Usar cuando el usuario necesita: consumo medio, evolución horaria/diaria, " +
                 "valores máximos/mínimos en un periodo, tendencias, comparativas entre periodos, " +
                 "resúmenes de consumo, informes energéticos. " +
-                "Esta herramienta es MÁS EFICIENTE que query-data para análisis y resúmenes. " +
-                "Para ver datos crudos individuales, usar query-data.",
+                "Más eficiente que query-data para análisis y resúmenes.",
             inputSchema: z.object({
                 collection: collectionEnum,
                 device_id: z.string().optional().describe(
@@ -224,42 +195,45 @@ export function registerTools(server) {
                     field: z.string().describe("Campo del tag por el que filtrar."),
                     values: z.array(z.string()).describe("Valores del tag. Múltiples valores se evalúan con OR.")
                 })).optional().describe("Filtros adicionales por tags. Múltiples objetos tag se combinan con AND."),
-                start: z.string().optional().describe(
-                    "Fecha de inicio en ISO 8601 (ej: '2025-11-01T00:00:00Z'). Usar junto con 'end'. " +
-                    "Si no se proporcionan start/end, se usa 'last'."
-                ),
-                end: z.string().optional().describe(
-                    "Fecha de fin en ISO 8601 (ej: '2025-11-02T00:00:00Z'). Usar junto con 'start'."
-                ),
+                start: z.string().optional().describe("Fecha de inicio en ISO 8601. Usar junto con 'end'."),
+                end: z.string().optional().describe("Fecha de fin en ISO 8601. Usar junto con 'start'."),
                 last: z.number().optional().describe(
-                    "Minutos hacia atrás desde ahora. " +
-                    "Ej: 60 = última hora, 1440 = último día, 10080 = última semana, 43200 = último mes. Por defecto 60."
+                    "Minutos hacia atrás desde ahora. Ej: 60 = última hora, 1440 = último día. Por defecto 60."
                 ),
-                timezone: z.string().optional().describe("Zona horaria para interpretar las fechas. Por defecto 'Europe/Madrid'."),
+                timezone: z.string().optional().describe("Zona horaria. Por defecto 'Europe/Madrid'."),
                 operations: z.enum(["avg", "min", "max", "sum", "count", "last"]).optional().describe(
-                    "Función estadística a aplicar sobre cada intervalo: " +
-                    "'avg' (media), 'min' (mínimo), 'max' (máximo), 'sum' (suma total), " +
-                    "'count' (número de lecturas), 'last' (último valor). Por defecto 'avg'."
+                    "Función estadística: 'avg' (media), 'min', 'max', 'sum', 'count', 'last'. Por defecto 'avg'."
                 ),
                 interval_minutes: z.number().optional().describe(
-                    "Intervalo de agrupación en minutos. " +
-                    "Ej: 60 = agrupación horaria, 1440 = agrupación diaria, 10080 = agrupación semanal. " +
-                    "Por defecto 60 (horario)."
+                    "Intervalo de agrupación en minutos. Ej: 60 = horario, 1440 = diario. Por defecto 60."
                 ),
                 group_by: z.enum(["device_id", "magnitude"]).optional().describe(
-                    "Campo por el que agrupar los resultados: " +
-                    "'device_id' (un resultado por dispositivo) o 'magnitude' (un resultado por tipo de medición). " +
-                    "Por defecto 'device_id'."
+                    "Agrupar por 'device_id' o 'magnitude'. Por defecto 'device_id'."
                 ),
-                export_format: z.enum(["json", "csv", "xml"]).optional().describe("Formato de exportación de los datos. Por defecto 'json'.")
+                export_format: z.enum(["json", "csv", "xml"]).optional().describe("Formato de exportación. Por defecto 'json'.")
             })
         },
-        async (params = {}) => {
+        handler: async (params = {}) => {
             const result = await OpenApiMeasurements.fetchOpenApiQueryAggregation(params);
             return {
                 content: [{ type: "text", text: JSON.stringify(result, null, 2) }]
             };
         }
-    );
+    },
+];
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+//  Registro de tools en el servidor MCP
+//  relevantToolNames = null  → registra las 4 tools (desarrollo / fallback)
+//  relevantToolNames = [...] → registra solo las indicadas (producción)
+// ─────────────────────────────────────────────────────────────────────────────
+export function registerTools(server, relevantToolNames = null) {
+    const toolsToRegister = relevantToolNames
+        ? ALL_TOOLS.filter(t => relevantToolNames.includes(t.name))
+        : ALL_TOOLS;
+
+    for (const tool of toolsToRegister) {
+        server.registerTool(tool.name, tool.definition, tool.handler);
+    }
 }
