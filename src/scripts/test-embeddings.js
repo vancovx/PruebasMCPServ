@@ -1,6 +1,6 @@
 import { EmbeddingsService } from '../services/embeddings.service.js';
 
-const query = "Dime los dispositivos de la coleccion de electricidad?";
+const query = "Muéstrame la evolución horaria del consumo eléctrico";
 console.error(`\nBuscando tools relevantes para: "${query}"\n`);
 
 const results = await EmbeddingsService.findRelevantTools(query, 3, 0.3);
