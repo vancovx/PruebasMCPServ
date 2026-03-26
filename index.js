@@ -1,33 +1,23 @@
 import express from "express";
 import dotenv from "dotenv";
+import cors from "cors";
 import { registerTools } from "./src/tools/registerTool.js";
 import { registerPrompts } from "./src/prompts/registerPrompts.js";
 import { EmbeddingsService } from "./src/services/embeddings.service.js";
-
-// Librerias MCP 
+import { registerCampusTools } from "./src/tools/campusTool.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"; 
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js"; 
-
-// Librerias varias
 import { randomUUID } from "crypto";
 import { DateTime } from "luxon";
 import { join } from 'path';
 
-// Deshabilitamos la verificación de certificados TLS
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
-
-// Configuracion de variables de entorno
 dotenv.config({ path: join(process.cwd(), 'src/config/.env'), quiet: true });
 
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Extraer la query del usuario desde el body MCP
-//  El protocolo MCP envía los mensajes del usuario en req.body.messages
-// ─────────────────────────────────────────────────────────────────────────────
 function extractUserQuery(body) {
     try {
-        // Formato MCP: { messages: [{ role: "user", content: { type: "text", text: "..." } }] }
         const messages = body?.messages ?? [];
         const userMessages = messages.filter(m => m.role === "user");
         if (userMessages.length === 0) return null;
@@ -48,10 +38,6 @@ function extractUserQuery(body) {
 }
 
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Crear servidor MCP — acepta lista de nombres de tools a registrar
-//  Si relevantToolNames es null, registra todas (comportamiento por defecto)
-// ─────────────────────────────────────────────────────────────────────────────
 function createMcpServer(relevantToolNames = null) {
     const server = new McpServer(
         { name: "mcp-server1-prueba", version: "1.0.0" },
@@ -59,27 +45,62 @@ function createMcpServer(relevantToolNames = null) {
     );
 
     registerTools(server, relevantToolNames);
+    registerCampusTools(server);
     registerPrompts(server);
 
     return server;
 }
 
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Iniciar servidor
-// ─────────────────────────────────────────────────────────────────────────────
 async function startMcpServer() {
+    
     if (process.env.NODE_ENV === "production") {
 
         const app = express();
+
+        app.use(cors({
+            origin: '*',
+            methods: ['GET', 'POST', 'OPTIONS', 'DELETE'],
+            allowedHeaders: ['Content-Type', 'Accept', 'Authorization', 'Mcp-Session-Id'],
+            exposedHeaders: ['Mcp-Session-Id'],
+            credentials: false
+        }));
+
+        app.options('/mcp', cors());
+
         app.use(express.json());
 
-        app.get("/health", (req, res) => { res.json({ status: "ok" }); });
+        app.get("/health", (req, res) => {
+            res.json({ status: "ok" });
+        });
 
+        // GET /mcp — devuelve info del servidor y lista de herramientas
+        // Open WebUI usa este endpoint para descubrir y mostrar las herramientas
+        app.get("/mcp", (req, res) => {
+            const server = createMcpServer();
+            
+            const tools = Object.entries(server._registeredTools).map(([name, tool]) => ({
+                name,
+                description: tool.description || "",
+                inputSchema: tool.inputSchema || { type: "object", properties: {} }
+            }));
+
+            res.json({
+                name: "mcp-server1-prueba",
+                version: "1.0.0",
+                protocolVersion: "2024-11-05",
+                capabilities: {
+                    tools: { listChanged: true },
+                    prompts: { listChanged: true }
+                },
+                tools
+            });
+        });
+
+        // POST /mcp — maneja todas las peticiones del protocolo MCP
         app.post("/mcp", async (req, res) => {
             let relevantToolNames = null;
 
-            // Intentar búsqueda semántica — si falla, se registran todas las tools
             try {
                 const userQuery = extractUserQuery(req.body);
 
@@ -92,12 +113,10 @@ async function startMcpServer() {
                             `[MCP] Query: "${userQuery.slice(0, 60)}..." → Tools seleccionadas: [${relevantToolNames.join(', ')}]`
                         );
                     } else {
-                        // Similitud por debajo del threshold en todas — usar todas las tools
                         console.error(`[MCP] Sin coincidencias semánticas para: "${userQuery.slice(0, 60)}..." → Registrando todas las tools`);
                     }
                 }
             } catch (err) {
-                // Nunca bloquear la request por un fallo de embeddings
                 console.error('[MCP] Error en búsqueda semántica, usando todas las tools:', err.message);
             }
 
@@ -109,13 +128,17 @@ async function startMcpServer() {
             await transport.handleRequest(req, res, req.body);
         });
 
+        // DELETE /mcp — cierre de sesión MCP
+        app.delete("/mcp", (req, res) => {
+            res.status(200).json({ status: "session closed" });
+        });
+
         const port = process.env.PORT || 3000;
-        app.listen(port, () => {
+        app.listen(port, '0.0.0.0', () => {
             console.error("Express + MCP corriendo en el puerto:", port);
         });
 
     } else if (process.env.NODE_ENV === "development") {
-        // STDIO para probar en local con MCP Inspector — todas las tools disponibles
         const server = createMcpServer();
         const transport = new StdioServerTransport();
         await server.connect(transport);
