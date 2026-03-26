@@ -1,6 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+import  logger  from "./src/config/logger.js";
 import { registerTools } from "./src/tools/registerTool.js";
 import { registerPrompts } from "./src/prompts/registerPrompts.js";
 import { EmbeddingsService } from "./src/services/embeddings.service.js";
@@ -135,14 +136,14 @@ async function startMcpServer() {
 
         const port = process.env.PORT || 3000;
         app.listen(port, '0.0.0.0', () => {
-            console.error("Express + MCP corriendo en el puerto:", port);
+            logger.info(`Express + MCP corriendo en el puerto: ${port}`);
         });
 
     } else if (process.env.NODE_ENV === "development") {
         const server = createMcpServer();
         const transport = new StdioServerTransport();
         await server.connect(transport);
-        console.error("Servidor MCP iniciado");
+        logger.info("Servidor MCP iniciado");
     }
 }
 
